@@ -49,7 +49,7 @@ class ModernGTPlannerCLI:
                  show_timestamps: bool = False,
                  show_metadata: bool = False,
                  verbose: bool = False,
-                 language: str = "zh"):
+                 language: str = "id"):
         """
         初始化CLI
 
@@ -58,7 +58,7 @@ class ModernGTPlannerCLI:
             show_timestamps: 是否显示时间戳
             show_metadata: 是否显示元数据
             verbose: 是否显示详细信息
-            language: 界面语言 (zh/en/ja/es/fr)，默认为中文
+            language: 界面语言 (id/en/zh/ja/es/fr)，默认为印尼语
         """
         self.console = Console()
         self.enable_streaming = enable_streaming
@@ -734,9 +734,9 @@ async def main():
     parser.add_argument("--verbose", "-v", action="store_true", help="显示详细信息")
     parser.add_argument("--load", help="加载指定会话ID")
     parser.add_argument("--language", "-l",
-                       choices=["zh", "en", "ja", "es", "fr"],
-                       default="zh",
-                       help="界面语言 (zh=中文, en=英文, ja=日文, es=西班牙文, fr=法文)，默认为中文")
+                       choices=["id", "en", "zh", "ja", "es", "fr"],
+                       default="id",
+                       help="界面语言 (id=印尼语, en=英文, zh=中文, ja=日文, es=西班牙文, fr=法文)，默认为印尼语")
 
     args = parser.parse_args()
 

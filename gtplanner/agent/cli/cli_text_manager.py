@@ -65,8 +65,65 @@ class CLITextManager:
         "timestamps_command": "开启/关闭时间戳显示",
         "metadata_command": "开启/关闭元数据显示",
     }
-    
-    # 英文文本
+
+    # Bahasa Indonesia texts
+    _texts_id = {
+        # Signal handling
+        "interrupt_signal_graceful": "\n🛑 [yellow]Sinyal interupsi diterima, keluar dengan anggun...[/yellow]",
+        "interrupt_signal": "\n🛑 [yellow]Sinyal interupsi diterima[/yellow]",
+        "confirm_exit": "Apakah Anda yakin ingin keluar?",
+        "goodbye": "\n👋 [yellow]Selamat tinggal![/yellow]",
+
+        # Session management
+        "create_new_session": "🆕 [green]Sesi baru dibuat:[/green] {session_id}",
+        "session_loaded": "📂 [green]Sesi dimuat:[/green] {session_id}",
+        "session_load_failed": "❌ [red]Gagal memuat sesi:[/red] {session_id}",
+        "no_session_found": "❌ [red]Tidak ada sesi yang cocok ditemukan:[/red] {partial_id}",
+        "specify_session_id": "❌ [red]Silakan tentukan ID sesi[/red]",
+
+        # Error messages
+        "context_build_failed": "❌ [red]Gagal membangun konteks[/red]",
+        "cli_exception": "💥 [red]Eksepsi CLI:[/red] {error}",
+        "cli_run_exception": "❌ [bold red]Eksepsi runtime CLI:[/bold red] {error}",
+        "streaming_cleanup_error": "⚠️ [yellow]Error membersihkan sesi streaming: {error}[/yellow]",
+        "database_save_warning": "⚠️ [yellow]Masalah saat menyimpan hasil ke database[/yellow]",
+
+        # Processing status
+        "processing_requirement": "🚀 [blue]Memproses kebutuhan:[/blue] {requirement}",
+        "user_interrupt": "\n👋 Pengguna terganggu, selamat tinggal!",
+
+        # Welcome information
+        "welcome_title": "🚀 GTPlanner CLI",
+        "welcome_subtitle": "Selamat datang di asisten perencanaan cerdas!",
+        "new_features": "✨ Fitur Baru",
+        "usage_method": "🎯 Cara Penggunaan",
+        "config_options": "⚙️ Opsi Konfigurasi",
+        "available_commands": "📝 Perintah Tersedia",
+        "streaming_enabled": "Diaktifkan",
+        "streaming_disabled": "Dinonaktifkan",
+        "usage_description": "Langsung masukkan kebutuhan Anda, dan saya akan menyediakan layanan perencanaan cerdas.",
+
+        # Help information
+        "help_title": "Informasi Bantuan",
+        "command_help": "📖 Bantuan Perintah",
+        "basic_commands": "Perintah Dasar",
+        "session_management": "Manajemen Sesi",
+        "config_options_help": "Opsi Konfigurasi",
+        "usage_examples": "Contoh Penggunaan",
+
+        # Command descriptions
+        "help_command": "Tampilkan informasi bantuan ini",
+        "quit_command": "Keluar dari program",
+        "sessions_command": "Lihat daftar semua sesi",
+        "new_command": "Buat sesi baru (judul opsional)",
+        "load_command": "Muat sesi tertentu (mendukung pencocokan ID parsial)",
+        "current_command": "Tampilkan informasi sesi saat ini",
+        "streaming_command": "Aktifkan/nonaktifkan respons streaming",
+        "timestamps_command": "Aktifkan/nonaktifkan tampilan timestamp",
+        "metadata_command": "Aktifkan/nonaktifkan tampilan metadata",
+    }
+
+    # English texts
     _texts_en = {
         # 信号处理
         "interrupt_signal_graceful": "\n🛑 [yellow]Interrupt signal received, gracefully exiting...[/yellow]",
@@ -180,15 +237,16 @@ class CLITextManager:
         "metadata_command": "メタデータ表示を有効/無効",
     }
     
-    def __init__(self, language: str = "zh"):
+    def __init__(self, language: str = "id"):
         """
-        初始化CLI文本管理器
-        
+        Initialize CLI text manager
+
         Args:
-            language: 语言代码 (zh/en/ja/es/fr)
+            language: Language code (id/en/zh/ja/es/fr)
         """
         self.language = language
         self._texts = {
+            "id": self._texts_id,
             "zh": self._texts_zh,
             "en": self._texts_en,
             "ja": self._texts_ja,
@@ -207,8 +265,8 @@ class CLITextManager:
         Returns:
             格式化后的文本
         """
-        texts = self._texts.get(self.language, self._texts_zh)
-        text = texts.get(key, self._texts_zh.get(key, f"[Missing text: {key}]"))
+        texts = self._texts.get(self.language, self._texts_id)
+        text = texts.get(key, self._texts_id.get(key, f"[Missing text: {key}]"))
         
         if kwargs:
             try:

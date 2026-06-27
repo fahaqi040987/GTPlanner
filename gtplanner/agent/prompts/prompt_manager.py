@@ -19,7 +19,7 @@ class PromptManager:
     def __init__(self):
         self.language_detector = LanguageDetector()
         self._template_cache: Dict[str, Dict[str, str]] = {}
-        self._default_language = SupportedLanguage.CHINESE
+        self._default_language = SupportedLanguage.INDONESIAN
     
     def get_prompt(self,
                    prompt_type: Union[str, Any],

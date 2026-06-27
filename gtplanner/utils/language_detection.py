@@ -14,6 +14,7 @@ from enum import Enum
 
 class SupportedLanguage(Enum):
     """Enumeration of supported languages."""
+    INDONESIAN = "id"
     ENGLISH = "en"
     CHINESE = "zh"
     SPANISH = "es"
@@ -26,6 +27,11 @@ class LanguageDetector:
     
     # Language patterns for basic detection
     LANGUAGE_PATTERNS = {
+        SupportedLanguage.INDONESIAN: [
+            r'\b(dan|atau|untuk|dengan|dari|yang|di|ke|pada|adalah|ini|itu|juga|bisa|dapat|akan|telah|adalah|merupakan)\b',
+            r'\b(saya|anda|kami|mereka|kita|nya|nya|nya)\b',
+            r'\b(membuat|menggunakan|menjadi|mendapatkan|melakukan|memiliki|memberikan|mengambil)\b',
+        ],
         SupportedLanguage.CHINESE: [
             r'[\u4e00-\u9fff]',  # Chinese characters
             r'[\u3400-\u4dbf]',  # CJK Extension A
@@ -52,7 +58,7 @@ class LanguageDetector:
         r'\b(is|are|was|were|be|been|being|have|has|had|do|does|did|will|would|could|should|may|might|can|must)\b',
     ]
     
-    def __init__(self, default_language: SupportedLanguage = SupportedLanguage.ENGLISH):
+    def __init__(self, default_language: SupportedLanguage = SupportedLanguage.INDONESIAN):
         """Initialize the language detector.
         
         Args:
@@ -151,6 +157,7 @@ class LanguageDetector:
             The human-readable language name
         """
         language_names = {
+            SupportedLanguage.INDONESIAN.value: "Bahasa Indonesia",
             SupportedLanguage.ENGLISH.value: "English",
             SupportedLanguage.CHINESE.value: "中文",
             SupportedLanguage.SPANISH.value: "Español",

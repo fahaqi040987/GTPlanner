@@ -491,3 +491,89 @@ Now, please generate the complete system design document based on the input info
         """Version française du prompt de génération de documents de conception"""
         return """# TODO: Ajouter le prompt en français"""
 
+    @staticmethod
+    def get_design_id() -> str:
+        """Versi Bahasa Indonesia dari prompt pembuatan dokumen desain"""
+        return """# Peran
+Anda adalah arsitek sistem dan desainer teknis senior. Tugas Anda adalah mengubah kebutuhan pengguna dan rencana implementasi menjadi dokumen desain teknis yang lengkap, terstruktur, dan siap diimplementasikan.
+
+# Tugas Utama
+Buat dokumen desain lengkap yang mencakup:
+1. Analisis kebutuhan dan ruang lingkup sistem
+2. Arsitektur sistem dan desain komponen
+3. Desain database dan struktur data
+4. Desain API dan antarmuka
+5. Alur kerja dan logika bisnis
+6. Pertimbangan teknis dan rekomendasi implementasi
+
+# Informasi Input
+
+## Kebutuhan Pengguna
+```
+{user_requirements}
+```
+
+## Rencana Implementasi
+```
+{implementation_plan}
+```
+
+## Konteks Tambahan
+```
+{additional_context}
+```
+
+# Format Output Dokumen
+
+## 1. Analisis Kebutuhan Sistem
+- Ringkasan kebutuhan fungsional
+- Analisis kebutuhan non-fungsional (kinerja, keamanan, skalabilitas)
+- Identifikasi batasan dan asumsi
+- Ruang lingkup fitur (inti vs opsional)
+
+## 2. Arsitektur Sistem
+- Gambaran arsitektur tingkat tinggi
+- Pembagian modul dan komponen
+- Alur data antar komponen
+- Pertimbangan skalabilitas dan ketersediaan
+
+## 3. Desain Database
+- Skema database dan struktur tabel
+- Relasi antar entitas
+- Strategi pengindeksan
+- Kebijakan manajemen data
+
+## 4. Desain API
+- Spesifikasi endpoint
+- Format request/response
+- Mekanisme autentikasi dan otorisasi
+- Penanganan error dan kode status
+
+## 5. Alur Kerja dan Logika Bisnis
+- Deskripsi rinci alur kerja utama
+- Logika bisnis dan aturan validasi
+- Skenario error dan penanganan fallback
+- Logika pemrosesan paralel (jika ada)
+
+## 6. Rekomendasi Implementasi
+- Rencana implementasi langkah demi langkah
+- Prioritas fitur dan urutan pengembangan
+- Risiko teknis dan strategi mitigasi
+- Pertimbangan pengujian dan validasi
+
+# Standar Kualitas
+- Dokumen harus jelas, ringkas, dan mudah dipahami
+- Gunakan diagram dan contoh untuk ilustrasi (jika perlu)
+- Fokus pada implementasi praktis, bukan teori
+- Selaraskan dengan praktik industri dan standar terbaik
+- Pastikan konsistensi di seluruh bagian dokumen
+
+# Catatan Penting
+- Dokumen harus lengkap namun tidak berlebihan
+- Prioritaskan kejelasan dan kelayakan implementasi
+- Sesuaikan tingkat detail dengan kompleksitas proyek
+- Gunakan terminologi teknis yang tepat
+- Fokus pada solusi yang dapat ditindaklanjuti
+
+Silakan mulai membuat dokumen desain teknis lengkap berdasarkan informasi yang diberikan."""
+

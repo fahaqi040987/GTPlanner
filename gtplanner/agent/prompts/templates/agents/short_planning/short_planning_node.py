@@ -195,3 +195,90 @@ Generate a clear, step-by-step backend implementation plan based on user require
     def get_short_planning_generation_fr() -> str:
         """Version française du prompt de génération de planification courte"""
         return """# TODO: Ajouter le prompt en français"""
+
+    @staticmethod
+    def get_short_planning_generation_id() -> str:
+        """Versi Bahasa Indonesia dari prompt pembuatan perencanaan singkat"""
+        return """# Peran
+Anda adalah arsitek sistem yang berfokus pada desain logika bisnis backend dan pemrosesan data.
+
+# Batasan Penting
+1. **Hanya merencanakan logika backend**: Jangan sertakan UI frontend, antarmuka, atau interaksi pengguna
+2. **Prinsip Penanganan File**: API hanya menerima string URL S3. **JANGAN merencanakan** hal berikut:
+   - ❌ Langkah upload/download file
+   - ❌ Langkah validasi format file
+   - ❌ Langkah manajemen file sementara
+   - ✅ Gunakan prefab langsung untuk memproses URL S3
+
+# Tugas Utama
+Buat rencana implementasi backend yang langkah demi langkah, jelas, dan terstruktur berdasarkan kebutuhan pengguna dan informasi yang tersedia.
+
+# Informasi Input
+
+1. **Kebutuhan Pengguna:**
+   ```
+   {req_content}
+   ```
+
+2. **Daftar Prefab yang Direkomendasikan:**
+   ```
+   {prefabs_content}
+   ```
+
+3. **Hasil Penelitian Teknis:**
+   ```
+   {research_content}
+   ```
+
+# Spesifikasi Output
+
+### Rencana Implementasi Langkah-demi-Langkah
+- **Format**: Daftar langkah bernomor (hanya logika backend)
+- **Persyaratan**:
+  * Setiap langkah menggambarkan modul fungsional backend atau tahap pemrosesan yang jelas
+  * Gunakan bahasa bisnis backend (misalnya, penerimaan data → validasi → pemrosesan → penyimpanan → pengembalian)
+  * **Jika prefab yang direkomendasikan tersedia, prioritaskan penggunaannya**, Format: `Langkah X: [Deskripsi] (Prefab yang Direkomendasikan: [Nama Prefab])`
+  * **Jika hasil penelitian teknis tersedia, gabungkan optimasi**, pastikan kelayakan teknis
+  * Tandai fitur opsional: `(Opsional)`
+  * Identifikasi modul pemrosesan paralel
+
+### Poin Arsitektur (jika diperlukan)
+- **Pembagian Modul**: Modul backend dan desain antarmuka API
+- **Alur Data**: Mekanisme pemrosesan, penyimpanan, dan transmisi data
+- **Skalabilitas**: Cadangan untuk ekspansi fitur masa depan
+
+# Contoh Output
+
+## Contoh 1: Perencanaan Fitur Dasar (Tanpa Prefab yang Direkomendasikan)
+**Kebutuhan**: Sistem ringkasan video cerdas
+
+1. **Penerimaan Data**: Menerima string URL S3 file video
+2. **Ekstraksi Audio**: Mengekstrak data audio dari video
+3. **Recognisi Suara**: Pemrosesan audio ke teks
+4. **Analisis Konten**: Mengekstrak tema utama dan poin penting (pemrosesan NLP backend)
+5. **Pemrosesan Terstruktur**: Mengorganisir data ke format JSON
+6. **Pengembalian Data**: Menghasilkan data hasil terstruktur
+
+---
+
+## Contoh 2: Perencanaan Solusi Teknis (Dengan Prefab yang Direkomendasikan)
+**Kebutuhan**: Sistem ringkasan video cerdas
+**Prefab yang Direkomendasikan**: video-processing-prefab, sensevoice-asr-prefab, llm-client
+
+1. **Penerimaan Data**: Menerima string URL S3 file video
+2. **Pemrosesan Video**: Mengekstrak data audio (Prefab yang Direkomendasikan: video-processing-prefab)
+3. **Recognisi Suara**: Audio ke teks (Prefab yang Direkomendasikan: sensevoice-asr-prefab)
+4. **Analisis Konten**: Analisis AI konten teks (Prefab yang Direkomendasikan: llm-client)
+5. **Pemrosesan Paralel**:
+   * Ringkasan Topik: Menghasilkan data topik
+   * Konstruksi Q&A: Menghasilkan data Q&A
+6. **Output Data**: Mengembalikan hasil format JSON (termasuk URL S3 file hasil)
+
+---
+
+**Pengingat Penting**:
+- Hanya output alur langkah backend
+- Jangan sertakan frontend, UI, interaksi pengguna, dll.
+- Jangan sertakan langkah upload/download file, validasi file, manajemen file sementara, dll.
+- Jangan tambahkan penjelasan atau komentar tambahan
+- Sesuaikan detail perencanaan secara cerdas berdasarkan informasi yang tersedia (prefab yang direkomendasikan, hasil penelitian)"""

@@ -421,3 +421,84 @@ class CommonTextFragmentsTemplates:
     def get_default_project_title_fr() -> str:
         """Version française du titre de projet par défaut"""
         return "Projet d'Agent IA"
+
+    # ==================== Bahasa Indonesia Version ====================
+    @staticmethod
+    def get_previous_planning_header_id() -> str:
+        """Versi Bahasa Indonesia dari header perencanaan sebelumnya"""
+        return "\n---Referensi Perencanaan Sebelumnya---"
+
+    @staticmethod
+    def get_improvement_points_header_id() -> str:
+        """Versi Bahasa Indonesia dari header poin peningkatan"""
+        return "\n---Area Utama untuk Peningkatan---"
+
+    @staticmethod
+    def get_improvement_instruction_id() -> str:
+        """Versi Bahasa Indonesia dari instruksi peningkatan"""
+        return "\nSilakan integrasikan semua informasi di atas, terutama poin peningkatan, untuk menghasilkan alur kerja baru dan yang dioptimalkan."
+
+    @staticmethod
+    def get_tools_header_id() -> str:
+        """Versi Bahasa Indonesia dari header alat"""
+        return "\n---Daftar Alat yang Direkomendasikan---"
+
+    @staticmethod
+    def get_research_header_id() -> str:
+        """Versi Bahasa Indonesia dari header penelitian"""
+        return "\n---Hasil Penelitian Teknis---"
+
+    @staticmethod
+    def get_no_tools_placeholder_id() -> str:
+        """Versi Bahasa Indonesia dari placeholder tanpa alat"""
+        return "Tidak ada alat yang direkomendasikan tersedia"
+
+    @staticmethod
+    def get_no_research_placeholder_id() -> str:
+        """Versi Bahasa Indonesia dari placeholder tanpa penelitian"""
+        return "Tidak ada hasil penelitian teknis tersedia"
+
+    @staticmethod
+    def get_bullet_point_id() -> str:
+        """Versi Bahasa Indonesia dari prefiks bullet point"""
+        return "- {content}"
+
+    @staticmethod
+    def get_unknown_tool_id() -> str:
+        """Versi Bahasa Indonesia dari alat yang tidak diketahui"""
+        return "Alat tidak diketahui"
+
+    @staticmethod
+    def get_tool_format_id() -> str:
+        """Versi Bahasa Indonesia dari format alat"""
+        return "- {tool_name} ({tool_type}): {tool_summary}"
+
+    @staticmethod
+    def get_research_summary_prefix_id() -> str:
+        """Versi Bahasa Indonesia dari prefiks ringkasan penelitian"""
+        return "Ringkasan Penelitian Teknis:"
+
+    @staticmethod
+    def get_key_findings_prefix_id() -> str:
+        """Versi Bahasa Indonesia dari prefiks temuan kunci"""
+        return "Temuan Teknis Utama:"
+
+    @staticmethod
+    def get_no_requirements_placeholder_id() -> str:
+        """Versi Bahasa Indonesia dari placeholder tanpa persyaratan"""
+        return "Tidak ada persyaratan pengguna yang diberikan"
+
+    @staticmethod
+    def get_no_planning_placeholder_id() -> str:
+        """Versi Bahasa Indonesia dari placeholder tanpa perencanaan"""
+        return "Tidak ada perencanaan proyek yang diberikan"
+
+    @staticmethod
+    def get_tool_based_planning_placeholder_id() -> str:
+        """Versi Bahasa Indonesia dari placeholder perencanaan berbasis alat"""
+        return "Optimalkan perencanaan proyek berdasarkan alat teknis yang direkomendasikan"
+
+    @staticmethod
+    def get_default_project_title_id() -> str:
+        """Versi Bahasa Indonesia dari judul proyek default"""
+        return "Proyek Agent AI"

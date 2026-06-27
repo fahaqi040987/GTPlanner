@@ -27,14 +27,14 @@ search_base_url = "https://s.jina.ai/"
 web_base_url = "https://r.jina.ai/"
 
 [default.multilingual]
-# Default language for the system (en, zh, es, fr, ja)
-default_language = "en"
+# Default language for the system (id, en, zh, es, fr, ja)
+default_language = "id"
 # Enable automatic language detection from user input
 auto_detect = true
 # Fallback to default language when requested language is not supported
 fallback_enabled = true
 # Supported languages (can be customized to enable/disable specific languages)
-supported_languages = ["en", "zh", "es", "fr", "ja"]
+supported_languages = ["id", "en", "zh", "es", "fr", "ja"]
 
 [default.vector_service]
 # Vector service configuration for prefab recommendation
