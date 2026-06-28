@@ -12,6 +12,14 @@ out/
 __pycache__/
 *.egg-info/
 
+# Web Interface (Vite frontend)
+web/node_modules/
+web/dist/
+web/.env
+web/.env.local
+web/.env.*.local
+web/vite.config.js.timestamp-*
+
 # Environment files
 .env
 .env.local
@@ -83,6 +91,7 @@ coverage/
 *.sqlite
 *.sqlite3
 *.db
+gtplanner_web.db  # Web Interface SQLite database
 
 # Optional npm cache directory
 .npm
@@ -115,3 +124,5 @@ test_workspace/
 # Old directories (cleaned up in refactor)
 api/
 document_embedding/
+history/*
+docs/*

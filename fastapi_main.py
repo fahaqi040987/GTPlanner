@@ -4,10 +4,12 @@ import logging
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Query, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 # 导入 SSE GTPlanner API
@@ -15,6 +17,10 @@ from gtplanner.agent.api.agent_api import SSEGTPlanner
 
 # 导入索引管理器
 from gtplanner.agent.utils.startup_init import initialize_application
+
+# 导入 Web Interface 路由
+from gtplanner.web.routes import api_router
+from gtplanner.web.database import init_database
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -26,7 +32,17 @@ async def lifespan(app: FastAPI):
     """应用生命周期管理：启动和关闭事件"""
     # 启动时执行
     logger.info("🚀 GTPlanner API 启动中...")
-    
+
+    try:
+        # 初始化 Web Interface 数据库
+        logger.info("🗄️  初始化 Web Interface 数据库...")
+        init_database()
+        logger.info("✅ Web Interface 数据库初始化完成")
+
+    except Exception as e:
+        logger.error(f"❌ Web Interface 数据库初始化失败: {str(e)}")
+        # 不阻止应用启动，但记录错误
+
     try:
         # 初始化应用，包括预加载预制件索引
         result = await initialize_application(
@@ -46,9 +62,9 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"❌ 启动时初始化失败: {str(e)}")
         # 不阻止应用启动，但记录错误
-    
+
     yield  # 应用运行期间
-    
+
     # 关闭时执行（如果需要清理资源）
     logger.info("👋 GTPlanner API 正在关闭...")
 
@@ -78,11 +94,20 @@ app = FastAPI(
 # CORS 配置
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 在生产环境中应该限制具体域名
+    allow_origins=[
+        "http://localhost:5173",  # Vite dev server
+        "http://localhost:11211",  # FastAPI server
+        "*"  # 在生产环境中应该限制具体域名
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 包含 Web Interface API 路由
+app.include_router(api_router, prefix="/api/web")
+
+# 现有路由已移除，只保留 SSE Agent 路由
 
 # 现有路由已移除，只保留 SSE Agent 路由
 
@@ -312,6 +337,29 @@ async def chat_agent_stream(request: AgentContextRequest):
     except Exception as e:
         logger.error(f"Chat agent stream error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+# 静态文件服务（用于生产环境中的前端构建文件）
+# 在开发中，Vite dev server 会处理静态文件
+# 在生产中，确保 web/dist 目录存在并包含构建文件
+frontend_dist_path = Path(__file__).parent / "web" / "dist"
+if frontend_dist_path.exists():
+    app.mount("/static", StaticFiles(directory=str(frontend_dist_path / "static")), name="static")
+
+    # SPA fallback：对于所有非 API 路由，返回 index.html
+    from fastapi.responses import FileResponse
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        """Serve frontend SPA (Single Page Application)"""
+        index_file = frontend_dist_path / "index.html"
+        if index_file.exists():
+            return FileResponse(str(index_file))
+        else:
+            raise HTTPException(status_code=404, detail="Frontend not built")
+
+    logger.info(f"🌐 Frontend static files served from: {frontend_dist_path}")
+else:
+    logger.info("⚠️  Frontend dist directory not found. Run 'cd web && npm run build' to build frontend.")
 
 if __name__ == "__main__":
     uvicorn.run("fastapi_main:app", host="0.0.0.0", port=11211, reload=True)
