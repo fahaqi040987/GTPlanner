@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import prdGenerationService from '../../services/prdGenerationService';
+import { prdGenerationService } from '../../services/prdGenerationService';
 import { useWorkspaceStore } from '../../stores/workspaceStore';
 
 function AIPRDGenerator({ workspaceId, onSuccess, onCancel }) {

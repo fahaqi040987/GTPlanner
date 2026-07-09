@@ -3,7 +3,7 @@
  */
 
 import { create } from 'zustand';
-import prdService from '../services/prdService';
+import { prdService } from '../services/prdService';
 
 export const usePRDStore = create((set, get) => ({
   // State

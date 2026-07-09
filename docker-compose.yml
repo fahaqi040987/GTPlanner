@@ -1,0 +1,112 @@
+# GTPlanner Docker Compose - Development Environment
+# This configuration is for local development with hot reloading
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: gtplanner-db-dev
+    environment:
+      POSTGRES_USER: gtplanner
+      POSTGRES_PASSWORD: gtplanner_dev_pass
+      POSTGRES_DB: gtplanner_db
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gtplanner"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gtplanner-network
+
+  # FastAPI Backend Service (Development Mode)
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: gtplanner-backend-dev
+    environment:
+      - DATABASE_URL=postgresql://gtplanner:gtplanner_dev_pass@db:5432/gtplanner_db
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://api.openai.com/v1}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_MODEL=${LLM_MODEL:-gpt-4}
+      - JINA_API_KEY=${JINA_API_KEY:-}
+      - VECTOR_SERVICE_BASE_URL=${VECTOR_SERVICE_BASE_URL:-http://localhost:8080}
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-}
+      - LANGFUSE_HOST=${LANGFUSE_HOST:-https://cloud.langfuse.com}
+    volumes:
+      - .:/app
+      - /app/.venv  # Exclude venv to avoid conflicts
+      - /app/__pycache__  # Exclude cache
+      - /app/*__pycache__  # Exclude cache
+      - /app/.pytest_cache  # Exclude pytest cache
+      - /app/.uv-cache  # Exclude uv cache
+    ports:
+      - "11211:11211"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:11211/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - gtplanner-network
+    restart: unless-stopped
+
+  # React Frontend Service (Development Mode)
+  frontend:
+    build:
+      context: ./web
+      dockerfile: Dockerfile.dev
+    container_name: gtplanner-frontend-dev
+    environment:
+      - VITE_API_BASE_URL=http://localhost:11211
+      - VITE_WS_BASE_URL=ws://localhost:11211
+    volumes:
+      - ./web:/app
+      - /app/node_modules  # Use node_modules from container
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - gtplanner-network
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy (Development Mode)
+  nginx:
+    image: nginx:alpine
+    container_name: gtplanner-nginx-dev
+    volumes:
+      - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+      - ./web/public:/usr/share/nginx/html:ro
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - gtplanner-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data_dev:
+    driver: local
+
+networks:
+  gtplanner-network:
+    driver: bridge
