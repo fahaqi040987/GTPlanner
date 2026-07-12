@@ -41,5 +41,5 @@ CREATE INDEX IF NOT EXISTS idx_sessions_document_id ON sessions(document_id);
 -- Insert test user (password: test12345)
 -- Password hash generated with bcrypt
 INSERT INTO users (email, password_hash) VALUES
-('test@example.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5NU7TiZM6tW4q')
+('test@example.com', '$2b$12$AugJZsBKQgHDFiPam4DpKOrJS5uWv.IkGDyWVJlsfRuaXwqz10rri')
 ON CONFLICT (email) DO NOTHING;
