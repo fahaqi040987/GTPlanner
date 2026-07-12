@@ -1,12 +1,15 @@
 /**
  * Dashboard page showing user's PRDs
+ * Enhanced with studio workspace design
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { documentAPI } from '../services/api';
 
 function DashboardPage() {
+  const [hoveredCard, setHoveredCard] = useState(null);
+
   const {
     data: documents,
     isLoading,
@@ -16,72 +19,187 @@ function DashboardPage() {
     queryFn: () => documentAPI.list(),
   });
 
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.ceil(diffDays / 7)} weeks ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const getWordCount = (content) => {
+    if (!content) return 0;
+    return content.split(/\s+/).filter(word => word.length > 0).length;
+  };
+
   if (isLoading) {
     return (
-      <div className="loading">
-        <div className="spinner"></div>
-        <p className="caption">Loading your workspace...</p>
+      <div className="studio-loading">
+        <div className="loading-spinner"></div>
+        <p className="loading-text">Preparing your studio...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="error">
-        Failed to load documents: {error.message}
+      <div className="studio-error">
+        <div className="error-icon">!</div>
+        <div className="error-content">
+          <h3>Unable to load your workspace</h3>
+          <p>{error.message}</p>
+          <button onClick={() => window.location.reload()} className="btn-retry">
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }
 
+  const hasDocuments = documents?.data?.length > 0;
+
   return (
-    <div className="dashboard-page">
-      <div className="page-header">
-        <div>
-          <h1>Your Workspace</h1>
-          <p>Manage and generate product requirements documents</p>
+    <div className="studio-dashboard">
+      {/* Hero Section - Studio Introduction */}
+      <div className="studio-hero">
+        <div className="hero-content">
+          <div className="hero-greeting">
+            <span className="greeting-emoji">✨</span>
+            <h1>Welcome back</h1>
+          </div>
+          <p className="hero-subtitle">
+            {hasDocuments
+              ? `You have ${documents.data.length} PRD${documents.data.length > 1 ? 's' : ''} in progress`
+              : 'Your studio is ready for your first project'
+            }
+          </p>
         </div>
-        <Link to="/prd/new" className="btn btn-primary">
-          <span>+</span> New PRD
+        <Link to="/prd/new" className="studio-cta">
+          <span className="cta-icon">+</span>
+          <span className="cta-text">New PRD</span>
+          <span className="cta-accent">→</span>
         </Link>
       </div>
 
-      {!documents?.data?.length ? (
-        <div className="empty-state">
-          <div className="empty-state-icon">📄</div>
-          <h2 className="empty-state-title">No PRDs yet</h2>
-          <p className="empty-state-text">
-            Start by creating your first Product Requirements Document. Transform your ideas into structured technical documentation.
-          </p>
-          <Link to="/prd/new" className="btn btn-primary btn-large">
-            Create Your First PRD
-          </Link>
+      {/* Main Content */}
+      {!hasDocuments ? (
+        <div className="studio-empty">
+          <div className="empty-illustration">
+            <div className="illustration-grid">
+              {[...Array(12)].map((_, i) => (
+                <div key={i} className="grid-cell" style={{ animationDelay: `${i * 0.1}s` }}></div>
+              ))}
+            </div>
+            <div className="illustration-center">
+              <span className="center-icon">📋</span>
+            </div>
+          </div>
+
+          <div className="empty-content">
+            <h2 className="empty-title">Create your first PRD</h2>
+            <p className="empty-description">
+              Transform your ideas into structured technical documentation.
+              Start with a simple description and let AI help you build comprehensive requirements.
+            </p>
+
+            <div className="empty-features">
+              <div className="feature-item">
+                <span className="feature-icon">⚡</span>
+                <div className="feature-text">
+                  <strong>Quick generation</strong>
+                  <span>From idea to PRD in seconds</span>
+                </div>
+              </div>
+              <div className="feature-item">
+                <span className="feature-icon">🎯</span>
+                <div className="feature-text">
+                  <strong>Structured output</strong>
+                  <span>Professional technical documentation</span>
+                </div>
+              </div>
+              <div className="feature-item">
+                <span className="feature-icon">🔄</span>
+                <div className="feature-text">
+                  <strong>Iterative refinement</strong>
+                  <span>Update and improve anytime</span>
+                </div>
+              </div>
+            </div>
+
+            <Link to="/prd/new" className="empty-cta">
+              <span>Start Creating</span>
+              <span>→</span>
+            </Link>
+          </div>
         </div>
       ) : (
-        <div className="dashboard-grid">
-          {documents.data.map((prd) => (
-            <Link key={prd.id} to={`/prd/${prd.id}`} className="card">
-              <div className="card-header">
-                <div>
-                  <h3 className="card-title">{prd.title}</h3>
-                  <p className="card-subtitle">
-                    {new Date(prd.updated_at).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
-                  </p>
+        <div className="studio-grid">
+          {documents.data.map((prd, index) => (
+            <Link
+              key={prd.id}
+              to={`/prd/${prd.id}`}
+              className={`prd-card ${hoveredCard === prd.id ? 'prd-card-hovered' : ''}`}
+              onMouseEnter={() => setHoveredCard(prd.id)}
+              onMouseLeave={() => setHoveredCard(null)}
+              style={{ animationDelay: `${index * 0.05}s` }}
+            >
+              {/* Blueprint-style corners */}
+              <div className="card-corner top-left"></div>
+              <div className="card-corner top-right"></div>
+              <div className="card-corner bottom-left"></div>
+              <div className="card-corner bottom-right"></div>
+
+              <div className="card-content">
+                {/* Card header */}
+                <div className="prd-header">
+                  <div className="prd-meta">
+                    <span className="prd-number">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <span className="prd-type">PRD</span>
+                  </div>
+                  <span className="prd-date">{formatDate(prd.updated_at)}</span>
                 </div>
-                <span className="label">PRD</span>
-              </div>
-              <p className="prd-summary">
-                {prd.content?.substring(0, 150) || 'No content available'}
-                {prd.content?.length > 150 && '...'}
-              </p>
-              <div className="card-footer">
-                <span className="caption">View details →</span>
+
+                {/* Card body */}
+                <h3 className="prd-title">{prd.title || 'Untitled Project'}</h3>
+
+                <p className="prd-excerpt">
+                  {prd.content?.substring(0, 120) || 'No description available'}
+                  {prd.content?.length > 120 && '...'}
+                </p>
+
+                {/* Card footer */}
+                <div className="prd-footer">
+                  <div className="prd-stats">
+                    <span className="stat-item">
+                      <span className="stat-icon">📝</span>
+                      {getWordCount(prd.content)} words
+                    </span>
+                  </div>
+                  <span className="prd-action">View →</span>
+                </div>
               </div>
             </Link>
           ))}
+        </div>
+      )}
+
+      {/* Quick actions bar */}
+      {hasDocuments && (
+        <div className="studio-actions">
+          <div className="actions-info">
+            <span className="actions-count">{documents.data.length} projects</span>
+            <span className="actions-hint">Keep the momentum going</span>
+          </div>
+          <Link to="/prd/new" className="actions-secondary">
+            <span>+ Quick Add</span>
+          </Link>
         </div>
       )}
     </div>
