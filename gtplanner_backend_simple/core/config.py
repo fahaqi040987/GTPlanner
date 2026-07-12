@@ -1,0 +1,59 @@
+"""
+Core configuration for simplified GTPlanner backend
+"""
+import os
+from pathlib import Path
+from pydantic_settings import BaseSettings
+from typing import Optional
+
+
+class Settings(BaseSettings):
+    """Application settings"""
+
+    # Application
+    APP_NAME: str = "GTPlanner"
+    APP_VERSION: str = "2.0.0"
+    DEBUG: bool = True
+
+    # Database
+    DATABASE_URL: str = "postgresql://gtplanner:gtplanner_dev_pass@localhost:5432/gtplanner_db"
+
+    # OpenAI
+    OPENAI_API_KEY: str
+    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
+    OPENAI_MODEL: str = "gpt-4"
+
+    # Authentication
+    SECRET_KEY: str = "your-secret-key-change-in-production"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
+    # CORS
+    CORS_ORIGINS: list = ["http://localhost:5173", "http://localhost:8080"]
+
+    class Config:
+        # Use environment-specific .env files
+        # Try .env.dev first (for simplified backend), fall back to .env
+        env_file = [
+            ".env.dev",
+            ".env"
+        ]
+        env_file_encoding = "utf-8"
+        case_sensitive = True
+        extra = "ignore"  # Ignore extra fields from main GTPlanner's .env
+
+
+# For local development with simplified backend
+# Set GTPLANNER_ENV=simple to use .env.dev
+def get_settings() -> Settings:
+    """Get settings with environment-specific configuration"""
+    env = os.getenv("GTPLANNER_ENV", "")
+    if env == "simple":
+        # Explicitly use .env.dev
+        return Settings(_env_file=".env.dev")
+    else:
+        # Try .env.dev first, fall back to .env
+        return Settings()
+
+
+settings = get_settings()

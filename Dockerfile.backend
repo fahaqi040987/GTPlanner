@@ -1,0 +1,33 @@
+# Simplified GTPlanner Backend Dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install Python dependencies
+COPY pyproject.simple.toml pyproject.toml
+RUN pip install --no-cache-dir -e .
+
+# Copy application
+COPY gtplanner_backend_simple/ ./gtplanner_backend_simple/
+
+# Create non-root user
+RUN useradd -m -u 1000 gtplanner && \
+    chown -R gtplanner:gtplanner /app
+
+USER gtplanner
+
+# Expose port
+EXPOSE 11211
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:11211/health')"
+
+# Run application
+CMD ["uvicorn", "gtplanner_backend_simple.main:app", "--host", "0.0.0.0", "--port", "11211"]

@@ -126,3 +126,5 @@ api/
 document_embedding/
 history/*
 docs/*
+
+archive/*

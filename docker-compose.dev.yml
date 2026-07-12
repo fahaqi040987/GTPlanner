@@ -1,0 +1,74 @@
+# Simplified GTPlanner Docker Compose - Local Development
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: gtplanner-db-simple
+    environment:
+      POSTGRES_USER: gtplanner
+      POSTGRES_PASSWORD: gtplanner_dev_pass
+      POSTGRES_DB: gtplanner_db
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - postgres_data_simple:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gtplanner -d gtplanner_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gtplanner-network
+
+  # Backend Service
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: gtplanner-backend-simple
+    env_file:
+      - .env.dev
+    environment:
+      - DATABASE_URL=postgresql://gtplanner:gtplanner_dev_pass@db:5432/gtplanner_db
+    ports:
+      - "11211:11211"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:11211/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - gtplanner-network
+    restart: unless-stopped
+
+  # Frontend Service
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: gtplanner-frontend-simple
+    environment:
+      - VITE_API_BASE_URL=/api
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks:
+      - gtplanner-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data_simple:
+    driver: local
+
+networks:
+  gtplanner-network:
+    driver: bridge
