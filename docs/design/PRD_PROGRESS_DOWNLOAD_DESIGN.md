@@ -871,41 +871,41 @@ export const downloadHelpers = {
 ## Testing Checklist
 
 ### Progress System
-- [ ] Progress bar appears when generation starts
-- [ ] Progress updates through all stages
-- [ ] Status text is meaningful and accurate
-- [ ] Progress reaches 100% on completion
-- [ ] Early completion jumps to 100% correctly
-- [ ] Error states show red progress bar
-- [ ] Retry functionality works correctly
+- [x] Progress bar appears when generation starts
+- [x] Progress updates through all stages
+- [x] Status text is meaningful and accurate
+- [x] Progress reaches 100% on completion
+- [x] Early completion jumps to 100% correctly
+- [x] Error states show red progress bar
+- [x] Retry functionality works correctly
 
 ### Download System
-- [ ] Can download .md from dashboard card
-- [ ] Can download .json from dashboard card
-- [ ] Can download .md from detail page
-- [ ] Can download .json from detail page
-- [ ] Can download from menu dropdown
-- [ ] Files have correct naming format
-- [ ] Markdown file contains all PRD sections
-- [ ] JSON file matches API schema
-- [ ] Download confirmation appears
-- [ ] Multiple downloads work correctly
+- [x] Can download .md from dashboard card
+- [x] Can download .json from dashboard card
+- [x] Can download .md from detail page
+- [x] Can download .json from detail page
+- [x] Can download from menu dropdown
+- [x] Files have correct naming format
+- [x] Markdown file contains all PRD sections
+- [x] JSON file matches API schema
+- [x] Download confirmation appears
+- [x] Multiple downloads work correctly
 
 ### Navigation
-- [ ] Dropdown menu appears on interaction
-- [ ] Menu items are correctly labeled
-- [ ] Export submenu shows on PRD pages only
-- [ ] Menu actions navigate correctly
-- [ ] Menu closes after action
-- [ ] Works on mobile devices
+- [x] Dropdown menu appears on interaction
+- [x] Menu items are correctly labeled
+- [x] Export submenu shows on PRD pages only
+- [x] Menu actions navigate correctly
+- [x] Menu closes after action
+- [x] Works on mobile devices
 
 ### Agent Integration
-- [ ] JSON format validates correctly
-- [ ] All required fields present
-- [ ] Data types are consistent
-- [ ] Timestamps parse correctly
-- [ ] Arrays are properly formatted
-- [ ] File can be parsed by standard JSON parsers
+- [x] JSON format validates correctly
+- [x] All required fields present
+- [x] Data types are consistent
+- [x] Timestamps parse correctly
+- [x] Arrays are properly formatted
+- [x] File can be parsed by standard JSON parsers
 
 ## Future Enhancements (Out of Scope)
 
