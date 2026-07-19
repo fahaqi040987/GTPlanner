@@ -8,6 +8,7 @@ import ReactMarkdown from 'react-markdown';
 import { documentAPI } from '../services/api';
 import PRDEditForm from '../components/PRDEditForm';
 import ExportMenu from '../components/ExportMenu';
+import CopyMarkdownButton from '../components/CopyMarkdownButton';
 
 function PRDDetailPage() {
   const { id } = useParams();
@@ -213,6 +214,10 @@ function PRDDetailPage() {
             <ExportMenu
               prd={prdData}
               trigger="button"
+            />
+            <CopyMarkdownButton
+              prd={prdData}
+              onCopy={(format) => setExportStatus(`Exported ${format}`)}
             />
             <button
               onClick={toggleEditMode}

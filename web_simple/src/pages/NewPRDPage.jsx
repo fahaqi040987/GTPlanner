@@ -27,24 +27,30 @@ function NewPRDPage() {
     error: null
   });
 
-  // Progress simulation stages
+  // Progress simulation stages with adaptive timing
   const progressStages = [
-    { progress: 20, status: "Connecting to AI service...", delay: 2000 },
-    { progress: 40, status: "Analyzing your requirements...", delay: 4000 },
-    { progress: 70, status: "Generating PRD structure...", delay: 6000 },
-    { progress: 90, status: "Building tech stack recommendations...", delay: 4000 },
-    { progress: 100, status: "Finalizing document...", delay: 2000 }
+    { progress: 20, status: "Connecting to AI service...", delay: 2500 },
+    { progress: 40, status: "Analyzing your requirements...", delay: 3500 },
+    { progress: 60, status: "Generating PRD structure...", delay: 4500 },
+    { progress: 80, status: "Building tech stack recommendations...", delay: 3500 },
+    { progress: 95, status: "Finalizing document...", delay: 2500 },
+    { progress: 100, status: "Saving to database...", delay: 1500 }
   ];
 
-  // Progress simulation function
+  // Progress simulation function with adaptive timing
   const simulateProgress = async () => {
     for (const stage of progressStages) {
+      // Add small random variance for natural feel (±20%)
+      const variance = 0.8 + Math.random() * 0.4; // 0.8 to 1.2
+      const adaptiveDelay = stage.delay * variance;
+
       setProgressState(prev => ({
         ...prev,
         progress: stage.progress,
         status: stage.status
       }));
-      await new Promise(resolve => setTimeout(resolve, stage.delay));
+
+      await new Promise(resolve => setTimeout(resolve, adaptiveDelay));
     }
   };
 

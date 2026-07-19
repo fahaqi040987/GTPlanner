@@ -10,16 +10,21 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import NewPRDPage from './pages/NewPRDPage';
 import PRDDetailPage from './pages/PRDDetailPage';
+import SettingsPage from './pages/SettingsPage';
 
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
+import NavigationBar from './components/NavigationBar';
 
 function App() {
   const { isAuthenticated } = useAuthStore();
 
   return (
     <div className="App">
+      {/* Global Navigation Bar */}
+      {isAuthenticated && <NavigationBar />}
+
       <Routes>
         {/* Public routes */}
         <Route
@@ -40,6 +45,7 @@ function App() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="prd/new" element={<NewPRDPage />} />
           <Route path="prd/:id" element={<PRDDetailPage />} />
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
 
         {/* Catch all */}
