@@ -1,10 +1,11 @@
 /**
- * New PRD creation page
+ * New PRD creation page with progress indicators
  */
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { prdAPI } from '../services/api';
+import ProgressBar from '../components/ProgressBar';
 
 function NewPRDPage() {
   const navigate = useNavigate();
@@ -18,14 +19,68 @@ function NewPRDPage() {
   });
   const [error, setError] = useState('');
 
+  // Progress state
+  const [progressState, setProgressState] = useState({
+    progress: 0,
+    status: '',
+    isGenerating: false,
+    error: null
+  });
+
+  // Progress simulation stages
+  const progressStages = [
+    { progress: 20, status: "Connecting to AI service...", delay: 2000 },
+    { progress: 40, status: "Analyzing your requirements...", delay: 4000 },
+    { progress: 70, status: "Generating PRD structure...", delay: 6000 },
+    { progress: 90, status: "Building tech stack recommendations...", delay: 4000 },
+    { progress: 100, status: "Finalizing document...", delay: 2000 }
+  ];
+
+  // Progress simulation function
+  const simulateProgress = async () => {
+    for (const stage of progressStages) {
+      setProgressState(prev => ({
+        ...prev,
+        progress: stage.progress,
+        status: stage.status
+      }));
+      await new Promise(resolve => setTimeout(resolve, stage.delay));
+    }
+  };
+
   const generateMutation = useMutation({
     mutationFn: prdAPI.generate,
+    onMutate: () => {
+      // Start progress simulation
+      setProgressState({
+        progress: 0,
+        status: 'Initializing...',
+        isGenerating: true,
+        error: null
+      });
+      simulateProgress();
+    },
     onSuccess: (response) => {
-      // Navigate to the generated PRD
-      navigate(`/prd/${response.data.id}`);
+      // Jump to completion
+      setProgressState({
+        progress: 100,
+        status: 'Complete!',
+        isGenerating: false,
+        error: null
+      });
+
+      // Navigate after brief delay
+      setTimeout(() => {
+        navigate(`/prd/${response.data.id}`);
+      }, 1500);
     },
     onError: (error) => {
-      setError(error.response?.data?.detail || 'Failed to generate PRD');
+      setProgressState({
+        progress: 0,
+        status: '',
+        isGenerating: false,
+        error: error.response?.data?.detail || 'Failed to generate PRD'
+      });
     },
   });
 
@@ -77,6 +132,36 @@ function NewPRDPage() {
 
       <div className="card">
         {error && <div className="error">{error}</div>}
+
+        {/* Progress Bar */}
+        {progressState.isGenerating && (
+          <ProgressBar
+            progress={progressState.progress}
+            status={progressState.status}
+            error={progressState.error}
+            complete={progressState.progress === 100 && !progressState.error}
+          />
+        )}
+
+        {progressState.error && (
+          <div style={{
+            marginTop: 'var(--space-4)',
+            padding: 'var(--space-3)',
+            backgroundColor: 'var(--error-50)',
+            color: 'var(--error-700)',
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid var(--error-200)'
+          }}>
+            <strong>Error:</strong> {progressState.error}
+            <button
+              onClick={() => window.location.reload()}
+              className="btn btn-secondary"
+              style={{ marginLeft: 'var(--space-3)', marginTop: 'var(--space-2)' }}
+            >
+              Try Again
+            </button>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">

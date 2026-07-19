@@ -1,5 +1,5 @@
 /**
- * PRD detail page with viewing and editing
+ * PRD detail page with viewing, editing, and export
  */
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import { documentAPI } from '../services/api';
 import PRDEditForm from '../components/PRDEditForm';
+import ExportMenu from '../components/ExportMenu';
 
 function PRDDetailPage() {
   const { id } = useParams();
@@ -17,6 +18,7 @@ function PRDDetailPage() {
   const [editMode, setEditMode] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [exportStatus, setExportStatus] = useState('');
 
   const { data: prd, isLoading, error } = useQuery({
     queryKey: ['prd', id],
@@ -70,6 +72,35 @@ function PRDDetailPage() {
     setEditMode(!editMode);
     setSaveError('');
     setSaveSuccess(false);
+  };
+
+  // Export handler
+  const handleExport = async (data, format) => {
+    try {
+      const { downloadHelpers } = await import('../services/api');
+
+      let content, filename, mimeType;
+
+      if (format === 'md') {
+        content = downloadHelpers.generateMarkdown(data);
+        filename = downloadHelpers.sanitizeFilename(data.title, data.id) + '.md';
+        mimeType = 'text/markdown';
+      } else if (format === 'json') {
+        content = downloadHelpers.generateJSON(data);
+        filename = downloadHelpers.sanitizeFilename(data.title, data.id) + '.json';
+        mimeType = 'application/json';
+      }
+
+      downloadHelpers.downloadFile(content, filename, mimeType);
+      setExportStatus(`Exported ${filename}`);
+
+      // Clear status after 3 seconds
+      setTimeout(() => setExportStatus(''), 3000);
+    } catch (error) {
+      console.error('Export failed:', error);
+      setExportStatus('Export failed - please try again');
+      setTimeout(() => setExportStatus(''), 3000);
+    }
   };
 
   if (isLoading) {
@@ -178,7 +209,11 @@ function PRDDetailPage() {
               </span>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
+            <ExportMenu
+              prd={prdData}
+              trigger="button"
+            />
             <button
               onClick={toggleEditMode}
               className="btn btn-primary"
@@ -193,6 +228,20 @@ function PRDDetailPage() {
               {deleteMutation.isLoading ? 'Deleting...' : 'Delete'}
             </button>
           </div>
+
+          {exportStatus && (
+            <div style={{
+              marginTop: 'var(--space-2)',
+              fontSize: 'var(--font-size-sm)',
+              color: 'var(--success-700)',
+              backgroundColor: 'var(--success-50)',
+              padding: 'var(--space-2) var(--space-3)',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--success-200)'
+            }}>
+              ✓ {exportStatus}
+            </div>
+          )}
         </div>
       </div>
 

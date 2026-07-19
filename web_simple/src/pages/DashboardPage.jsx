@@ -1,6 +1,6 @@
 /**
  * Dashboard page showing user's PRDs
- * Enhanced with studio workspace design
+ * Enhanced with studio workspace design and download functionality
  */
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -9,6 +9,36 @@ import { documentAPI } from '../services/api';
 
 function DashboardPage() {
   const [hoveredCard, setHoveredCard] = useState(null);
+  const [downloadStatus, setDownloadStatus] = useState('');
+
+  // Download handler for PRD cards
+  const downloadPRD = async (prd, format) => {
+    try {
+      const { downloadHelpers } = await import('../services/api');
+
+      let content, filename, mimeType;
+
+      if (format === 'md') {
+        content = downloadHelpers.generateMarkdown(prd);
+        filename = downloadHelpers.sanitizeFilename(prd.title, prd.id) + '.md';
+        mimeType = 'text/markdown';
+      } else if (format === 'json') {
+        content = downloadHelpers.generateJSON(prd);
+        filename = downloadHelpers.sanitizeFilename(prd.title, prd.id) + '.json';
+        mimeType = 'application/json';
+      }
+
+      downloadHelpers.downloadFile(content, filename, mimeType);
+      setDownloadStatus(`Downloaded ${filename}`);
+
+      // Clear status after 3 seconds
+      setTimeout(() => setDownloadStatus(''), 3000);
+    } catch (error) {
+      console.error('Download failed:', error);
+      setDownloadStatus('Download failed - please try again');
+      setTimeout(() => setDownloadStatus(''), 3000);
+    }
+  };
 
   const {
     data: documents,
@@ -78,6 +108,19 @@ function DashboardPage() {
               : 'Your studio is ready for your first project'
             }
           </p>
+          {downloadStatus && (
+            <div style={{
+              marginTop: 'var(--space-2)',
+              fontSize: 'var(--font-size-sm)',
+              color: 'var(--success-700)',
+              backgroundColor: 'var(--success-50)',
+              padding: 'var(--space-2) var(--space-3)',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--success-200)'
+            }}>
+              ✓ {downloadStatus}
+            </div>
+          )}
         </div>
         <Link to="/prd/new" className="studio-cta">
           <span className="cta-icon">+</span>
@@ -182,6 +225,25 @@ function DashboardPage() {
                       {getWordCount(prd.content)} words
                     </span>
                   </div>
+
+                  {/* Download buttons */}
+                  <div className="prd-card-download">
+                    <button
+                      className="card-download-btn"
+                      onClick={() => downloadPRD(prd, 'md')}
+                      title="Download as Markdown"
+                    >
+                      <span className="card-download-icon">📄</span>
+                    </button>
+                    <button
+                      className="card-download-btn"
+                      onClick={() => downloadPRD(prd, 'json')}
+                      title="Download as JSON"
+                    >
+                      <span className="card-download-icon">📊</span>
+                    </button>
+                  </div>
+
                   <span className="prd-action">View →</span>
                 </div>
               </div>
