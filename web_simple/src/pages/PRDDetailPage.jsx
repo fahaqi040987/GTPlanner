@@ -214,6 +214,7 @@ function PRDDetailPage() {
             <ExportMenu
               prd={prdData}
               trigger="button"
+              onExport={handleExport}
             />
             <CopyMarkdownButton
               prd={prdData}

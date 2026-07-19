@@ -175,7 +175,8 @@ export const downloadHelpers = {
       .replace(/[^\w\s-]/g, '')
       .replace(/\s+/g, '-')
       .substring(0, 50);
-    return `prd-${sanitized}-${id}`;
+    const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    return `prd-${sanitized}-${date}-${id}`;
   },
 
   downloadFile: (content, filename, mimeType) => {

@@ -2553,9 +2553,10 @@ a:focus-visible {
   }
 
   .navigation-user {
-    display: none;
+    display: none; /* Hidden from top bar on mobile — shown in mobile menu instead */
   }
 }
+
 
 /* Add spacing for fixed navigation bar */
 body {
@@ -2639,4 +2640,92 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
+}
+
+/* ========================================
+   NAV EXPORT DROPDOWN STYLES
+   ======================================== */
+
+.nav-export-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.nav-export-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-caption);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.nav-export-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.nav-export-dropdown {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  min-width: 200px;
+  background: var(--white);
+  border: 1px solid var(--slate-200);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-dropdown);
+  overflow: hidden;
+  animation: dropdownFadeIn 0.15s ease;
+}
+
+.nav-export-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: none;
+  border: none;
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--ink-700);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.nav-export-option:hover {
+  background: var(--slate-50);
+  color: var(--ink-900);
+}
+
+.nav-export-status {
+  font-size: var(--text-xs);
+  color: var(--success-700, #15803d);
+  white-space: nowrap;
+}
+
+/* Mobile nav user section */
+.mobile-nav-user {
+  border-top: 1px solid var(--slate-200);
+  padding-top: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.mobile-nav-user .user-menu {
+  width: 100%;
+}
+
+.mobile-nav-user .user-menu-button {
+  width: 100%;
+  justify-content: flex-start;
+  padding: var(--space-3) var(--space-4);
 }

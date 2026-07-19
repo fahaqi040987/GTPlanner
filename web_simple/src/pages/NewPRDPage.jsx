@@ -139,8 +139,8 @@ function NewPRDPage() {
       <div className="card">
         {error && <div className="error">{error}</div>}
 
-        {/* Progress Bar */}
-        {progressState.isGenerating && (
+        {/* Progress Bar — shown during generation OR when an error occurred */}
+        {(progressState.isGenerating || progressState.error) && (
           <ProgressBar
             progress={progressState.progress}
             status={progressState.status}
