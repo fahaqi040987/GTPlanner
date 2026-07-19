@@ -1,16 +1,22 @@
 /**
  * PRD detail page with viewing and editing
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import { documentAPI } from '../services/api';
+import PRDEditForm from '../components/PRDEditForm';
 
 function PRDDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  // Edit mode state
+  const [editMode, setEditMode] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const { data: prd, isLoading, error } = useQuery({
     queryKey: ['prd', id],
@@ -26,10 +32,44 @@ function PRDDetailPage() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: (data) => documentAPI.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['prd', id]);
+      queryClient.invalidateQueries(['documents']);
+      setSaveSuccess(true);
+      setSaveError('');
+      setTimeout(() => {
+        setEditMode(false);
+        setSaveSuccess(false);
+      }, 2000);
+    },
+    onError: (error) => {
+      setSaveError(error.response?.data?.detail || 'Failed to save changes');
+      setSaveSuccess(false);
+    },
+  });
+
   const handleDelete = () => {
     if (window.confirm('Are you sure you want to delete this PRD?')) {
       deleteMutation.mutate();
     }
+  };
+
+  const handleSave = (formData) => {
+    setSaveError('');
+    updateMutation.mutate(formData);
+  };
+
+  const handleCancel = () => {
+    setEditMode(false);
+    setSaveError('');
+  };
+
+  const toggleEditMode = () => {
+    setEditMode(!editMode);
+    setSaveError('');
+    setSaveSuccess(false);
   };
 
   if (isLoading) {
@@ -51,6 +91,63 @@ function PRDDetailPage() {
 
   const prdData = prd?.data;
 
+  // Show edit mode
+  if (editMode && prdData) {
+    return (
+      <div className="prd-detail-page">
+        <div className="page-header" style={{ marginBottom: 'var(--space-6)' }}>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="btn btn-ghost"
+            style={{ marginBottom: 'var(--space-4)' }}
+          >
+            ← Back to Dashboard
+          </button>
+          <div>
+            <h1>Edit PRD</h1>
+            <p className="caption">Make changes to your PRD below</p>
+          </div>
+        </div>
+
+        <div className="card">
+          {saveSuccess && (
+            <div className="success-message" style={{
+              padding: 'var(--space-3)',
+              marginBottom: 'var(--space-4)',
+              backgroundColor: 'var(--success-50)',
+              color: 'var(--success-700)',
+              borderRadius: 'var(--radius-1)',
+              border: '1px solid var(--success-200)'
+            }}>
+              ✓ PRD updated successfully!
+            </div>
+          )}
+
+          {saveError && (
+            <div className="error-message" style={{
+              padding: 'var(--space-3)',
+              marginBottom: 'var(--space-4)',
+              backgroundColor: 'var(--error-50)',
+              color: 'var(--error-700)',
+              borderRadius: 'var(--radius-1)',
+              border: '1px solid var(--error-200)'
+            }}>
+              {saveError}
+            </div>
+          )}
+
+          <PRDEditForm
+            initialData={prdData}
+            onSave={handleSave}
+            onCancel={handleCancel}
+            isSaving={updateMutation.isLoading}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Show view mode
   return (
     <div className="prd-detail-page">
       <div className="page-header" style={{ marginBottom: 'var(--space-6)' }}>
@@ -82,6 +179,12 @@ function PRDDetailPage() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+            <button
+              onClick={toggleEditMode}
+              className="btn btn-primary"
+            >
+              Edit
+            </button>
             <button
               onClick={handleDelete}
               className="btn btn-secondary"
