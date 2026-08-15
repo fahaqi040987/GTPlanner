@@ -1,6 +1,26 @@
 /**
  * Copy Markdown Button Component
- * Copies formatted PRD content to clipboard with YAML frontmatter
+ *
+ * Design Reference: docs/design/NAVIGATION_AND_MARKDOWN_DESIGN.md
+ * Implementation of copy to clipboard functionality with YAML frontmatter
+ *
+ * Features implemented:
+ * - Copy formatted markdown to clipboard (Design: Section "3. Copy to Clipboard Functionality")
+ * - YAML frontmatter inclusion for AI agent optimization (Design: Section "2. Improved Markdown Formatting")
+ * - Feedback states: Default → Copying → Success/Error (Design: Section "3. Copy to Clipboard Functionality")
+ * - Keyboard shortcut: Cmd/Ctrl + Shift + C (Design: Section "3. Copy to Clipboard Functionality")
+ * - Clipboard API with fallback for older browsers (Design: Section "3. Copy to Clipboard Functionality")
+ *
+ * Button States:
+ * - Default: "Copy Markdown" with secondary button style
+ * - Copying: Spinner with "Copying..." text
+ * - Success: Green checkmark + "Copied!" for 2 seconds
+ * - Error: Red X + "Failed to copy"
+ *
+ * Accessibility:
+ * - Keyboard accessible (Enter/Space)
+ * - Screen reader support with aria-label
+ * - Visual focus indicator
  */
 import React, { useState } from 'react';
 import { formatPRDMarkdown } from '../services/markdownFormatter';

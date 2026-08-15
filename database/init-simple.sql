@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(50) DEFAULT 'user',
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -38,8 +39,11 @@ CREATE INDEX IF NOT EXISTS idx_documents_updated_at ON documents(updated_at DESC
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_document_id ON sessions(document_id);
 
--- Insert test user (password: test12345)
--- Password hash generated with bcrypt
-INSERT INTO users (email, password_hash) VALUES
-('test@example.com', '$2b$12$AugJZsBKQgHDFiPam4DpKOrJS5uWv.IkGDyWVJlsfRuaXwqz10rri')
+-- Insert sample users for development
+-- Password hashes generated with bcrypt
+-- Roles: admin (System Administrator), user (Regular User), viewer (Viewer User)
+INSERT INTO users (email, password_hash, role) VALUES
+('admin@example.com', '$2b$12$OWIwPThlh184YtOPX/CNGuwGJ0qcrhmBfsiCOyp8hKLc7KDG4Rfue', 'admin'),
+('user@example.com', '$2b$12$GloVP0nvnwbBOuIjqSGb1usyUtN2VtqLxDltC9c0sXccFvlCFq.4K', 'user'),
+('viewer@example.com', '$2b$12$IIMqtPxRK6ijA9K2nFGCKehvwSVebWrHrb0E.fvL6VEYiDM3f.hiu', 'viewer')
 ON CONFLICT (email) DO NOTHING;

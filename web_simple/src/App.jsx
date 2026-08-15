@@ -22,8 +22,8 @@ function App() {
 
   return (
     <div className="App">
-      {/* Global Navigation Bar */}
-      {isAuthenticated && <NavigationBar />}
+      {/* Global Navigation Bar - ALWAYS VISIBLE, adapts based on auth state */}
+      <NavigationBar isAuthenticated={isAuthenticated} />
 
       <Routes>
         {/* Public routes */}

@@ -1,7 +1,21 @@
 /**
  * Global Navigation Bar Component
- * Fixed navigation across all pages with responsive menu
- * Includes context-sensitive Export submenu on PRD detail pages
+ *
+ * Design Reference: docs/design/NAVIGATION_AND_MARKDOWN_DESIGN.md
+ * Implementation of global navigation bar with responsive menu and export functionality
+ *
+ * Features implemented:
+ * - Fixed navigation across all pages (Design: Section "1. Global Navigation Bar")
+ * - Context-sensitive Export submenu on PRD detail pages (Design: Section "1. Global Navigation Bar")
+ * - Mobile responsive hamburger menu (Design: Section "1. Global Navigation Bar")
+ * - Export to Markdown (.md) and JSON formats (Design: Section "3. Copy to Clipboard Functionality")
+ * - Active page highlighting (Design: Section "1. Global Navigation Bar")
+ *
+ * Component Structure:
+ * - Navigation links: Dashboard | New PRD | Settings
+ * - User dropdown menu (UserMenu component)
+ * - Context-sensitive Export PRD submenu (only on PRD detail pages)
+ * - Mobile hamburger menu for responsive design
  */
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
@@ -10,7 +24,7 @@ import { downloadHelpers } from '../services/api';
 import { useQuery } from '@tanstack/react-query';
 import { documentAPI } from '../services/api';
 
-function NavigationBar() {
+function NavigationBar({ isAuthenticated = false }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [exportStatus, setExportStatus] = useState('');
@@ -34,10 +48,12 @@ function NavigationBar() {
     return location.pathname === path;
   };
 
-  const navLinks = [
+  const navLinks = isAuthenticated ? [
     { path: '/dashboard', label: 'Dashboard' },
     { path: '/prd/new', label: 'New PRD' },
     { path: '/settings', label: 'Settings' },
+  ] : [
+    { path: '/login', label: 'Login' },
   ];
 
   // Close export submenu when clicking outside
@@ -136,10 +152,12 @@ function NavigationBar() {
           )}
         </div>
 
-        {/* User Menu */}
-        <div className="navigation-user">
-          <UserMenu />
-        </div>
+        {/* User Menu - only show when authenticated */}
+        {isAuthenticated && (
+          <div className="navigation-user">
+            <UserMenu />
+          </div>
+        )}
 
         {/* Mobile Menu Button */}
         <button
@@ -190,10 +208,12 @@ function NavigationBar() {
             </>
           )}
 
-          {/* Mobile user menu — Bug 5 fix: show UserMenu on mobile */}
-          <div className="mobile-nav-user">
-            <UserMenu />
-          </div>
+          {/* Mobile user menu - only show when authenticated */}
+          {isAuthenticated && (
+            <div className="mobile-nav-user">
+              <UserMenu />
+            </div>
+          )}
         </div>
       )}
     </nav>

@@ -2558,9 +2558,17 @@ a:focus-visible {
 }
 
 
-/* Add spacing for fixed navigation bar */
+/* Add spacing for fixed navigation bar - ENSURE ALWAYS VISIBLE */
 body {
-  padding-top: 60px;
+  padding-top: 60px !important;
+}
+
+/* Ensure navigation bar is always visible */
+.navigation-bar {
+  position: fixed !important;
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 @media (max-width: 768px) {

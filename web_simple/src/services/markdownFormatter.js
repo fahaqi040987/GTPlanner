@@ -1,7 +1,28 @@
 /**
  * Markdown Formatter Service
- * Formats PRD data into structured markdown with YAML frontmatter
- * Optimized for AI agent consumption
+ *
+ * Design Reference: docs/design/NAVIGATION_AND_MARKDOWN_DESIGN.md
+ * Service for formatting PRD data into structured markdown with YAML frontmatter
+ *
+ * Features implemented:
+ * - Structured markdown format with YAML frontmatter (Design: Section "2. Improved Markdown Formatting")
+ * - AI-agent optimized formatting (Design: Section "2. Improved Markdown Formatting")
+ * - Consistent bullet points and section headers (Design: Section "2. Improved Markdown Formatting")
+ * - Metadata inclusion (title, created, updated, tech_stack) (Design: Section "2. Improved Markdown Formatting")
+ * - Whitespace consistency and sanitization (Design: Section "2. Improved Markdown Formatting")
+ *
+ * Format Specification:
+ * - YAML frontmatter with metadata
+ * - Clear section headers (##) for parsing
+ * - Consistent bullet points (-) throughout
+ * - Proper code blocks with syntax highlighting
+ * - No inline styles or complex formatting
+ *
+ * Functions:
+ * - formatPRDMarkdown(prd): Generate structured markdown with YAML frontmatter
+ * - sanitizeYAML(value): Prevent YAML injection attacks
+ * - sanitizeMarkdown(markdown): Ensure formatting consistency
+ * - generateFilename(title, id): Create filename-safe titles
  */
 
 /**
