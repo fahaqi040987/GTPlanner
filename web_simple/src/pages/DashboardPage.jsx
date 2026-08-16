@@ -11,24 +11,10 @@ function DashboardPage() {
   const [hoveredCard, setHoveredCard] = useState(null);
   const [downloadStatus, setDownloadStatus] = useState('');
 
-  // Download handler for PRD cards
   const downloadPRD = async (prd, format) => {
     try {
       const { downloadHelpers } = await import('../services/api');
-
-      let content, filename, mimeType;
-
-      if (format === 'md') {
-        content = downloadHelpers.generateMarkdown(prd);
-        filename = downloadHelpers.sanitizeFilename(prd.title, prd.id) + '.md';
-        mimeType = 'text/markdown';
-      } else if (format === 'json') {
-        content = downloadHelpers.generateJSON(prd);
-        filename = downloadHelpers.sanitizeFilename(prd.title, prd.id) + '.json';
-        mimeType = 'application/json';
-      }
-
-      downloadHelpers.downloadFile(content, filename, mimeType);
+      const filename = downloadHelpers.exportPRD(prd, format);
       setDownloadStatus(`Downloaded ${filename}`);
 
       // Clear status after 3 seconds
@@ -230,14 +216,22 @@ function DashboardPage() {
                   <div className="prd-card-download">
                     <button
                       className="card-download-btn"
-                      onClick={() => downloadPRD(prd, 'md')}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        downloadPRD(prd, 'md');
+                      }}
                       title="Download as Markdown"
                     >
                       <span className="card-download-icon">📄</span>
                     </button>
                     <button
                       className="card-download-btn"
-                      onClick={() => downloadPRD(prd, 'json')}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        downloadPRD(prd, 'json');
+                      }}
                       title="Download as JSON"
                     >
                       <span className="card-download-icon">📊</span>

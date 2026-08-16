@@ -28,19 +28,7 @@ function ExportMenu({ prd, trigger = 'button', onExport }) {
     if (!prd) return;
 
     try {
-      let content, filename, mimeType;
-
-      if (format === 'md') {
-        content = downloadHelpers.generateMarkdown(prd);
-        filename = downloadHelpers.sanitizeFilename(prd.title, prd.id) + '.md';
-        mimeType = 'text/markdown';
-      } else if (format === 'json') {
-        content = downloadHelpers.generateJSON(prd);
-        filename = downloadHelpers.sanitizeFilename(prd.title, prd.id) + '.json';
-        mimeType = 'application/json';
-      }
-
-      downloadHelpers.downloadFile(content, filename, mimeType);
+      const filename = downloadHelpers.exportPRD(prd, format);
 
       // Notify parent so it can show a toast / status message
       if (onExport) {

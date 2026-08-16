@@ -71,19 +71,7 @@ function NavigationBar({ isAuthenticated = false }) {
     if (!prdData) return;
 
     try {
-      let content, filename, mimeType;
-
-      if (format === 'md') {
-        content = downloadHelpers.generateMarkdown(prdData);
-        filename = downloadHelpers.sanitizeFilename(prdData.title, prdData.id) + '.md';
-        mimeType = 'text/markdown';
-      } else if (format === 'json') {
-        content = downloadHelpers.generateJSON(prdData);
-        filename = downloadHelpers.sanitizeFilename(prdData.title, prdData.id) + '.json';
-        mimeType = 'application/json';
-      }
-
-      downloadHelpers.downloadFile(content, filename, mimeType);
+      const filename = downloadHelpers.exportPRD(prdData, format);
       setExportStatus(`Downloaded ${filename}`);
       setTimeout(() => setExportStatus(''), 3000);
     } catch (err) {

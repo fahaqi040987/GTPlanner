@@ -62,107 +62,12 @@ export const documentAPI = {
   delete: (id) => api.delete(`/api/documents/${id}`),
 };
 
+import { formatPRDMarkdown } from './markdownFormatter';
+
 // Download Helper Functions
 export const downloadHelpers = {
   generateMarkdown: (prd) => {
-    const date = new Date().toISOString();
-    const wordCount = prd.content?.split(/\s+/).filter(w => w.length > 0).length || 0;
-
-    let markdown = `# ${prd.title}\n\n`;
-    markdown += `**Generated:** ${date}\n`;
-    markdown += `**Word Count:** ${wordCount}\n`;
-    markdown += `**PRD ID:** ${prd.id}\n\n`;
-    markdown += `${prd.content}\n\n`;
-
-    if (prd.requirements && Array.isArray(prd.requirements)) {
-      markdown += `## Requirements\n\n`;
-      prd.requirements.forEach(req => {
-        markdown += `- ${req}\n`;
-      });
-      markdown += `\n`;
-    }
-
-    if (prd.tech_stack) {
-      markdown += `## Technology Stack\n\n`;
-      markdown += `**Rationale:** ${prd.tech_stack.rationale || 'N/A'}\n\n`;
-
-      if (prd.tech_stack.frontend && Array.isArray(prd.tech_stack.frontend)) {
-        markdown += `### Frontend\n`;
-        prd.tech_stack.frontend.forEach(tech => {
-          markdown += `- ${tech}\n`;
-        });
-        markdown += `\n`;
-      }
-
-      if (prd.tech_stack.backend && Array.isArray(prd.tech_stack.backend)) {
-        markdown += `### Backend\n`;
-        prd.tech_stack.backend.forEach(tech => {
-          markdown += `- ${tech}\n`;
-        });
-        markdown += `\n`;
-      }
-
-      if (prd.tech_stack.database && Array.isArray(prd.tech_stack.database)) {
-        markdown += `### Database\n`;
-        prd.tech_stack.database.forEach(tech => {
-          markdown += `- ${tech}\n`;
-        });
-        markdown += `\n`;
-      }
-
-      if (prd.tech_stack.devops && Array.isArray(prd.tech_stack.devops)) {
-        markdown += `### DevOps\n`;
-        prd.tech_stack.devops.forEach(tech => {
-          markdown += `- ${tech}\n`;
-        });
-        markdown += `\n`;
-      }
-    }
-
-    if (prd.recommendations) {
-      markdown += `## Infrastructure Recommendations\n\n`;
-
-      if (prd.recommendations.hardware_specs) {
-        markdown += `### Hardware Specifications\n`;
-        markdown += `- **CPU:** ${prd.recommendations.hardware_specs.cpu_cores || 'N/A'}\n`;
-        markdown += `- **RAM:** ${prd.recommendations.hardware_specs.ram || 'N/A'}\n`;
-        markdown += `- **Disk:** ${prd.recommendations.hardware_specs.disk_space || 'N/A'}\n\n`;
-      }
-
-      if (prd.recommendations.cloud_providers && Array.isArray(prd.recommendations.cloud_providers)) {
-        markdown += `### Cloud Providers\n`;
-        prd.recommendations.cloud_providers.forEach(provider => {
-          markdown += `**${provider.name}**\n`;
-          markdown += `- Services: ${provider.services?.join(', ') || 'N/A'}\n`;
-          markdown += `- Cost: ${provider.estimated_monthly_cost || 'N/A'}\n\n`;
-        });
-      }
-
-      if (prd.recommendations.architecture) {
-        markdown += `### Architecture\n${prd.recommendations.architecture}\n\n`;
-      }
-
-      if (prd.recommendations.data_stack) {
-        markdown += `### Data Stack\n${prd.recommendations.data_stack}\n\n`;
-      }
-    }
-
-    if (prd.implementation_plan && Array.isArray(prd.implementation_plan)) {
-      markdown += `## Implementation Plan\n\n`;
-      prd.implementation_plan.forEach((plan, index) => {
-        markdown += `${index + 1}. ${plan}\n`;
-      });
-      markdown += `\n`;
-    }
-
-    if (prd.success_metrics && Array.isArray(prd.success_metrics)) {
-      markdown += `## Success Metrics\n\n`;
-      prd.success_metrics.forEach(metric => {
-        markdown += `- ${metric}\n`;
-      });
-    }
-
-    return markdown;
+    return formatPRDMarkdown(prd);
   },
 
   generateJSON: (prd) => {
@@ -193,6 +98,27 @@ export const downloadHelpers = {
     URL.revokeObjectURL(url);
 
     console.log(`Downloaded: ${filename}`);
+  },
+
+  exportPRD: (prd, format) => {
+    if (!prd) return null;
+    
+    let content, filename, mimeType;
+
+    if (format === 'md') {
+      content = downloadHelpers.generateMarkdown(prd);
+      filename = downloadHelpers.sanitizeFilename(prd.title, prd.id) + '.md';
+      mimeType = 'text/markdown';
+    } else if (format === 'json') {
+      content = downloadHelpers.generateJSON(prd);
+      filename = downloadHelpers.sanitizeFilename(prd.title, prd.id) + '.json';
+      mimeType = 'application/json';
+    } else {
+      throw new Error(`Unsupported format: ${format}`);
+    }
+
+    downloadHelpers.downloadFile(content, filename, mimeType);
+    return filename;
   }
 };
 

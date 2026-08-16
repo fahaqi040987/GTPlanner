@@ -75,34 +75,7 @@ function PRDDetailPage() {
     setSaveSuccess(false);
   };
 
-  // Export handler
-  const handleExport = async (data, format) => {
-    try {
-      const { downloadHelpers } = await import('../services/api');
 
-      let content, filename, mimeType;
-
-      if (format === 'md') {
-        content = downloadHelpers.generateMarkdown(data);
-        filename = downloadHelpers.sanitizeFilename(data.title, data.id) + '.md';
-        mimeType = 'text/markdown';
-      } else if (format === 'json') {
-        content = downloadHelpers.generateJSON(data);
-        filename = downloadHelpers.sanitizeFilename(data.title, data.id) + '.json';
-        mimeType = 'application/json';
-      }
-
-      downloadHelpers.downloadFile(content, filename, mimeType);
-      setExportStatus(`Exported ${filename}`);
-
-      // Clear status after 3 seconds
-      setTimeout(() => setExportStatus(''), 3000);
-    } catch (error) {
-      console.error('Export failed:', error);
-      setExportStatus('Export failed - please try again');
-      setTimeout(() => setExportStatus(''), 3000);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -214,7 +187,10 @@ function PRDDetailPage() {
             <ExportMenu
               prd={prdData}
               trigger="button"
-              onExport={handleExport}
+              onExport={(prd, format) => {
+                setExportStatus(`Exported as ${format.toUpperCase()}`);
+                setTimeout(() => setExportStatus(''), 3000);
+              }}
             />
             <CopyMarkdownButton
               prd={prdData}
