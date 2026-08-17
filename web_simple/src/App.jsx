@@ -14,7 +14,7 @@ import SettingsPage from './pages/SettingsPage';
 
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
-import Layout from './components/Layout';
+import AppShell from './components/layout/AppShell';
 import NavigationBar from './components/NavigationBar';
 
 function App() {
@@ -32,12 +32,12 @@ function App() {
           element={!isAuthenticated ? <LoginPage /> : <Navigate to="/dashboard" />}
         />
 
-        {/* Protected routes */}
+        {/* Protected routes - Now using AppShell layout */}
         <Route
           path="/"
           element={
             <ProtectedRoute>
-              <Layout />
+              <AppShell />
             </ProtectedRoute>
           }
         >
