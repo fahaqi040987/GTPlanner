@@ -1,12 +1,14 @@
 /**
- * PRD detail page with viewing, editing, and export
+ * PRD Detail page component - DesignStitch Document Detail design
  */
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import { documentAPI } from '../services/api';
-import PRDEditForm from '../components/PRDEditForm';
+import Button from '../components/design-system/Button';
+import Card from '../components/design-system/Card';
+import StatusBadge from '../components/design-system/StatusBadge';
 import ExportMenu from '../components/ExportMenu';
 import CopyMarkdownButton from '../components/CopyMarkdownButton';
 
@@ -14,17 +16,38 @@ function PRDDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-
-  // Edit mode state
-  const [editMode, setEditMode] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [content, setContent] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [exportStatus, setExportStatus] = useState('');
 
   const { data: prd, isLoading, error } = useQuery({
     queryKey: ['prd', id],
-    queryFn: () => documentAPI.get(id),
+    queryFn: async () => {
+      const response = await documentAPI.get(id);
+      setContent(response.data.content);
+      return response;
+    },
     enabled: !!id,
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: (updatedContent) => documentAPI.update(id, { content: updatedContent }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['prd', id]);
+      queryClient.invalidateQueries(['documents']);
+      setSaveSuccess(true);
+      setSaveError('');
+      setTimeout(() => {
+        setIsEditing(false);
+        setSaveSuccess(false);
+      }, 2000);
+    },
+    onError: (error) => {
+      setSaveError(error.response?.data?.detail || 'Failed to save changes');
+      setSaveSuccess(false);
+    },
   });
 
   const deleteMutation = useMutation({
@@ -35,281 +58,329 @@ function PRDDetailPage() {
     },
   });
 
-  const updateMutation = useMutation({
-    mutationFn: (data) => documentAPI.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['prd', id]);
-      queryClient.invalidateQueries(['documents']);
-      setSaveSuccess(true);
-      setSaveError('');
-      setTimeout(() => {
-        setEditMode(false);
-        setSaveSuccess(false);
-      }, 2000);
-    },
-    onError: (error) => {
-      setSaveError(error.response?.data?.detail || 'Failed to save changes');
-      setSaveSuccess(false);
-    },
-  });
-
   const handleDelete = () => {
     if (window.confirm('Are you sure you want to delete this PRD?')) {
       deleteMutation.mutate();
     }
   };
 
-  const handleSave = (formData) => {
+  const handleSave = () => {
     setSaveError('');
-    updateMutation.mutate(formData);
+    saveMutation.mutate(content);
   };
 
   const handleCancel = () => {
-    setEditMode(false);
+    setContent(prd?.data?.content || '');
+    setIsEditing(false);
     setSaveError('');
   };
-
-  const toggleEditMode = () => {
-    setEditMode(!editMode);
-    setSaveError('');
-    setSaveSuccess(false);
-  };
-
-
 
   if (isLoading) {
     return (
-      <div className="loading">
-        <div className="spinner"></div>
-        <p className="caption">Loading PRD...</p>
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-4 border-secondary border-t-transparent
+                      rounded-full animate-spin"></div>
       </div>
     );
   }
 
-  if (error) {
+  if (error || !prd?.data) {
     return (
-      <div className="error">
-        Failed to load PRD: {error.message}
-      </div>
-    );
-  }
-
-  const prdData = prd?.data;
-
-  // Show edit mode
-  if (editMode && prdData) {
-    return (
-      <div className="prd-detail-page">
-        <div className="page-header" style={{ marginBottom: 'var(--space-6)' }}>
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="btn btn-ghost"
-            style={{ marginBottom: 'var(--space-4)' }}
-          >
-            ← Back to Dashboard
-          </button>
-          <div>
-            <h1>Edit PRD</h1>
-            <p className="caption">Make changes to your PRD below</p>
-          </div>
-        </div>
-
-        <div className="card">
-          {saveSuccess && (
-            <div className="success-message" style={{
-              padding: 'var(--space-3)',
-              marginBottom: 'var(--space-4)',
-              backgroundColor: 'var(--success-50)',
-              color: 'var(--success-700)',
-              borderRadius: 'var(--radius-1)',
-              border: '1px solid var(--success-200)'
-            }}>
-              ✓ PRD updated successfully!
-            </div>
-          )}
-
-          {saveError && (
-            <div className="error-message" style={{
-              padding: 'var(--space-3)',
-              marginBottom: 'var(--space-4)',
-              backgroundColor: 'var(--error-50)',
-              color: 'var(--error-700)',
-              borderRadius: 'var(--radius-1)',
-              border: '1px solid var(--error-200)'
-            }}>
-              {saveError}
-            </div>
-          )}
-
-          <PRDEditForm
-            initialData={prdData}
-            onSave={handleSave}
-            onCancel={handleCancel}
-            isSaving={updateMutation.isLoading}
-          />
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-error mb-md">Failed to load PRD</p>
+          <Button onClick={() => navigate('/dashboard')}>Back to Dashboard</Button>
         </div>
       </div>
     );
   }
 
-  // Show view mode
+  const prdData = prd.data;
+
   return (
-    <div className="prd-detail-page">
-      <div className="page-header" style={{ marginBottom: 'var(--space-6)' }}>
-        <button
-          onClick={() => navigate('/dashboard')}
-          className="btn btn-ghost"
-          style={{ marginBottom: 'var(--space-4)' }}
-        >
-          ← Back to Dashboard
-        </button>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 'var(--space-4)' }}>
-          <div>
-            <h1 style={{ marginBottom: 'var(--space-2)' }}>{prdData?.title}</h1>
-            <div style={{ display: 'flex', gap: 'var(--space-6)' }}>
-              <span className="caption">
-                Created: {new Date(prdData?.created_at).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric'
-                })}
-              </span>
-              <span className="caption">
-                Updated: {new Date(prdData?.updated_at).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric'
-                })}
-              </span>
+    <div className="max-w-6xl mx-auto">
+      {/* Page Header */}
+      <div className="flex flex-col lg:flex-row lg:items-start justify-between
+                      mb-xl gap-md">
+        <div className="flex-1">
+          <div className="flex items-center gap-md mb-sm">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="text-outline hover:text-secondary transition-colors"
+            >
+              <span className="material-symbols-outlined">arrow_back</span>
+            </button>
+            <div>
+              <h1 className="text-headline-lg font-headline-lg text-primary">
+                {prdData.title}
+              </h1>
+              <div className="flex items-center gap-sm mt-xs">
+                <span className="text-code-md font-code-md text-outline">
+                  {prdData.id}
+                </span>
+                <StatusBadge
+                  status={prdData.status}
+                  variant={prdData.status === 'Published' ? 'published' : 'draft'}
+                />
+              </div>
             </div>
-          </div>
-          <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
-            <ExportMenu
-              prd={prdData}
-              trigger="button"
-              onExport={(prd, format) => {
-                setExportStatus(`Exported as ${format.toUpperCase()}`);
-                setTimeout(() => setExportStatus(''), 3000);
-              }}
-            />
-            <CopyMarkdownButton
-              prd={prdData}
-              onCopy={(format) => setExportStatus(`Exported ${format}`)}
-            />
-            <button
-              onClick={toggleEditMode}
-              className="btn btn-primary"
-            >
-              Edit
-            </button>
-            <button
-              onClick={handleDelete}
-              className="btn btn-secondary"
-              disabled={deleteMutation.isLoading}
-            >
-              {deleteMutation.isLoading ? 'Deleting...' : 'Delete'}
-            </button>
           </div>
 
           {exportStatus && (
-            <div style={{
-              marginTop: 'var(--space-2)',
-              fontSize: 'var(--font-size-sm)',
-              color: 'var(--success-700)',
-              backgroundColor: 'var(--success-50)',
-              padding: 'var(--space-2) var(--space-3)',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--success-200)'
-            }}>
-              ✓ {exportStatus}
+            <div className="mt-sm inline-flex items-center gap-xs px-sm py-xs rounded-full
+                          bg-success-container/20 text-on-success-container text-label-caps">
+              <span className="material-symbols-outlined text-sm">check_circle</span>
+              {exportStatus}
             </div>
           )}
         </div>
+
+        <div className="flex items-center gap-sm flex-wrap">
+          <ExportMenu
+            prd={prdData}
+            trigger="button"
+            onExport={(prd, format) => {
+              setExportStatus(`Exported as ${format.toUpperCase()}`);
+              setTimeout(() => setExportStatus(''), 3000);
+            }}
+          />
+          <CopyMarkdownButton
+            prd={prdData}
+            onCopy={(format) => setExportStatus(`Copied ${format}`)}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsEditing(!isEditing)}
+          >
+            <span className="material-symbols-outlined">{isEditing ? 'close' : 'edit'}</span>
+            {isEditing ? 'Cancel' : 'Edit'}
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleDelete}
+            disabled={deleteMutation.isLoading}
+          >
+            <span className="material-symbols-outlined">delete</span>
+            {deleteMutation.isLoading ? 'Deleting...' : 'Delete'}
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-2" style={{ gap: 'var(--space-8)' }}>
-        <div className="card">
-          <div className="prd-content">
-            <ReactMarkdown>{prdData?.content}</ReactMarkdown>
-          </div>
+      {/* Success/Error Messages */}
+      {saveSuccess && (
+        <div className="mb-md p-md bg-success-container/20 text-on-success-container
+                      rounded-lg border border-success-container/40 flex items-center gap-sm">
+          <span className="material-symbols-outlined">check_circle</span>
+          PRD updated successfully!
+        </div>
+      )}
+
+      {saveError && (
+        <div className="mb-md p-md bg-error-container/20 text-on-error-container
+                      rounded-lg border border-error-container/40 flex items-center gap-sm">
+          <span className="material-symbols-outlined">error</span>
+          {saveError}
+        </div>
+      )}
+
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-lg">
+        {/* PRD Content */}
+        <div className="lg:col-span-2">
+          <Card elevation="medium" padding="xl">
+            {isEditing ? (
+              <div className="space-y-lg">
+                <textarea
+                  className="w-full min-h-[400px] p-md bg-surface border border-outline-variant
+                             rounded-lg text-body-md text-on-surface focus:outline-none
+                             focus:border-secondary focus:ring-1 focus:ring-secondary
+                             font-code-md resize-y"
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                />
+                <div className="flex gap-sm">
+                  <Button
+                    variant="primary"
+                    onClick={handleSave}
+                    disabled={saveMutation.isLoading}
+                  >
+                    <span className="material-symbols-outlined">save</span>
+                    {saveMutation.isLoading ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleCancel}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="prose prose-sm max-w-none">
+                <ReactMarkdown>{prdData.content}</ReactMarkdown>
+              </div>
+            )}
+          </Card>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-          {prdData?.tech_stack && (
-            <div className="card">
-              <h3 style={{ marginBottom: 'var(--space-4)' }}>Technology Stack</h3>
-              <div className="tech-stack-list">
+        {/* Sidebar - Tech Stack & Infrastructure */}
+        <div className="space-y-lg">
+          {/* Metadata Section */}
+          <Card elevation="small" padding="lg">
+            <div className="space-y-md">
+              <div>
+                <h3 className="text-label-caps font-label-caps text-on-surface-variant mb-xs">
+                  Created
+                </h3>
+                <p className="text-body-sm text-on-surface">
+                  {new Date(prdData.created_at).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                  })}
+                </p>
+              </div>
+              <div>
+                <h3 className="text-label-caps font-label-caps text-on-surface-variant mb-xs">
+                  Last Modified
+                </h3>
+                <p className="text-body-sm text-on-surface">
+                  {new Date(prdData.updated_at).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                  })}
+                </p>
+              </div>
+              <div>
+                <h3 className="text-label-caps font-label-caps text-on-surface-variant mb-xs">
+                  Version
+                </h3>
+                <p className="text-body-sm text-on-surface">{prdData.version || '1.0'}</p>
+              </div>
+            </div>
+          </Card>
+
+          {/* Tech Stack */}
+          {prdData.tech_stack && (
+            <Card elevation="small" padding="lg">
+              <h3 className="text-label-lg font-label-lg text-on-surface mb-md">
+                Technology Stack
+              </h3>
+              <div className="space-y-md">
                 {prdData.tech_stack.frontend && (
-                  <div className="tech-item" style={{ marginBottom: 'var(--space-4)' }}>
-                    <span className="label">Frontend</span>
-                    <ul>
+                  <div>
+                    <span className="text-label-caps font-label-caps text-on-surface-variant">
+                      Frontend
+                    </span>
+                    <ul className="mt-xs space-y-xs">
                       {prdData.tech_stack.frontend.map((tech, i) => (
-                        <li key={i}>{tech}</li>
+                        <li key={i} className="text-body-sm text-on-surface flex items-center gap-xs">
+                          <span className="material-symbols-outlined text-sm text-outline">chevron_right</span>
+                          {tech}
+                        </li>
                       ))}
                     </ul>
                   </div>
                 )}
                 {prdData.tech_stack.backend && (
-                  <div className="tech-item" style={{ marginBottom: 'var(--space-4)' }}>
-                    <span className="label">Backend</span>
-                    <ul>
+                  <div>
+                    <span className="text-label-caps font-label-caps text-on-surface-variant">
+                      Backend
+                    </span>
+                    <ul className="mt-xs space-y-xs">
                       {prdData.tech_stack.backend.map((tech, i) => (
-                        <li key={i}>{tech}</li>
+                        <li key={i} className="text-body-sm text-on-surface flex items-center gap-xs">
+                          <span className="material-symbols-outlined text-sm text-outline">chevron_right</span>
+                          {tech}
+                        </li>
                       ))}
                     </ul>
                   </div>
                 )}
                 {prdData.tech_stack.database && (
-                  <div className="tech-item" style={{ marginBottom: 'var(--space-4)' }}>
-                    <span className="label">Database</span>
-                    <ul>
+                  <div>
+                    <span className="text-label-caps font-label-caps text-on-surface-variant">
+                      Database
+                    </span>
+                    <ul className="mt-xs space-y-xs">
                       {prdData.tech_stack.database.map((tech, i) => (
-                        <li key={i}>{tech}</li>
+                        <li key={i} className="text-body-sm text-on-surface flex items-center gap-xs">
+                          <span className="material-symbols-outlined text-sm text-outline">chevron_right</span>
+                          {tech}
+                        </li>
                       ))}
                     </ul>
                   </div>
                 )}
                 {prdData.tech_stack.devops && (
-                  <div className="tech-item">
-                    <span className="label">DevOps</span>
-                    <ul>
+                  <div>
+                    <span className="text-label-caps font-label-caps text-on-surface-variant">
+                      DevOps
+                    </span>
+                    <ul className="mt-xs space-y-xs">
                       {prdData.tech_stack.devops.map((tech, i) => (
-                        <li key={i}>{tech}</li>
+                        <li key={i} className="text-body-sm text-on-surface flex items-center gap-xs">
+                          <span className="material-symbols-outlined text-sm text-outline">chevron_right</span>
+                          {tech}
+                        </li>
                       ))}
                     </ul>
                   </div>
                 )}
               </div>
-            </div>
+            </Card>
           )}
 
-          {prdData?.recommendations && (
-            <div className="card">
-              <h3 style={{ marginBottom: 'var(--space-4)' }}>Infrastructure</h3>
+          {/* Infrastructure Recommendations */}
+          {prdData.recommendations && (
+            <Card elevation="small" padding="lg">
+              <h3 className="text-label-lg font-label-lg text-on-surface mb-md">
+                Infrastructure
+              </h3>
               {prdData.recommendations.hardware_specs && (
-                <div style={{ marginBottom: 'var(--space-4)' }}>
-                  <span className="label">Hardware</span>
-                  <div style={{ marginTop: 'var(--space-2)' }}>
-                    <p className="caption">CPU: {prdData.recommendations.hardware_specs.cpu_cores}</p>
-                    <p className="caption">RAM: {prdData.recommendations.hardware_specs.ram}</p>
-                    <p className="caption">Disk: {prdData.recommendations.hardware_specs.disk_space}</p>
+                <div className="mb-md">
+                  <span className="text-label-caps font-label-caps text-on-surface-variant">
+                    Hardware
+                  </span>
+                  <div className="mt-xs space-y-xs">
+                    <p className="text-body-sm text-on-surface">
+                      <span className="material-symbols-outlined text-sm text-outline align-middle mr-xs">memory</span>
+                      CPU: {prdData.recommendations.hardware_specs.cpu_cores} cores
+                    </p>
+                    <p className="text-body-sm text-on-surface">
+                      <span className="material-symbols-outlined text-sm text-outline align-middle mr-xs">storage</span>
+                      RAM: {prdData.recommendations.hardware_specs.ram}
+                    </p>
+                    <p className="text-body-sm text-on-surface">
+                      <span className="material-symbols-outlined text-sm text-outline align-middle mr-xs">hard_drive</span>
+                      Disk: {prdData.recommendations.hardware_specs.disk_space}
+                    </p>
                   </div>
                 </div>
               )}
               {prdData.recommendations.cloud_providers && (
-                <div style={{ marginBottom: 'var(--space-4)' }}>
-                  <span className="label">Cloud Providers</span>
-                  <div style={{ marginTop: 'var(--space-2)' }}>
+                <div>
+                  <span className="text-label-caps font-label-caps text-on-surface-variant">
+                    Cloud Providers
+                  </span>
+                  <div className="mt-xs space-y-sm">
                     {prdData.recommendations.cloud_providers.map((provider, i) => (
-                      <div key={i} style={{ marginBottom: 'var(--space-2)' }}>
-                        <p style={{ fontWeight: 'var(--font-semibold)' }}>{provider.name}</p>
-                        <p className="caption">Cost: {provider.estimated_monthly_cost}</p>
+                      <div key={i} className="p-sm bg-surface-container-low rounded-lg">
+                        <p className="text-body-md font-body-md text-on-surface">
+                          {provider.name}
+                        </p>
+                        <p className="text-body-sm text-outline mt-xs">
+                          Est. Cost: {provider.estimated_monthly_cost}
+                        </p>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
-            </div>
+            </Card>
           )}
         </div>
       </div>
