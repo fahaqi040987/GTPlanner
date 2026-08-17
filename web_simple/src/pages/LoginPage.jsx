@@ -6,6 +6,10 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { authAPI } from '../services/api';
 import { useAuthStore } from '../state/authStore';
+import Card from '../components/design-system/Card';
+import InputField from '../components/design-system/InputField';
+import Button from '../components/design-system/Button';
+import StatusBadge from '../components/design-system/StatusBadge';
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -66,7 +70,7 @@ function LoginPage() {
 
       {/* Main Card Container */}
       <main className="w-full max-w-[440px] px-lg md:px-0 relative z-10">
-        <div className="card" style={{ padding: 'var(--space-8)' }}>
+        <Card elevation="medium" padding="xl">
           {/* Branding & Header */}
           <header className="text-center mb-lg flex flex-col items-center">
             <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-md"
@@ -90,59 +94,53 @@ function LoginPage() {
           </header>
 
           {error && (
-            <div className="mb-lg error">
-              {error}
+            <div className="mb-lg">
+              <StatusBadge status={error} variant="error" />
             </div>
           )}
 
           {/* Login Form */}
-          <form onSubmit={handleSubmit} className="login-form">
-            <div className="form-group">
-              <label className="form-label" htmlFor="email">Email Address</label>
-              <input
-                id="email"
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className="form-input"
-                required
-                placeholder="user@gtplanner.dev"
-              />
-            </div>
+          <form onSubmit={handleSubmit} className="space-y-lg">
+            <InputField
+              label="Email Address"
+              name="email"
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+              placeholder="user@gtplanner.dev"
+            />
 
-            <div className="form-group">
-              <label className="form-label" htmlFor="password">Password</label>
-              <input
-                id="password"
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                className="form-input"
-                required
-                placeholder="••••••••"
-                style={{ fontFamily: 'var(--font-caption)', letterSpacing: '0.05em' }}
-              />
-            </div>
+            <InputField
+              label="Password"
+              name="password"
+              type="password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              placeholder="••••••••"
+              className="font-mono"
+            />
 
-            <button
+            <Button
               type="submit"
-              className="btn btn-primary btn-full btn-large"
+              variant="primary"
+              size="lg"
               disabled={authMutation.isLoading}
+              className="w-full"
             >
               {authMutation.isLoading ? 'Authenticating...' : 'Sign In'}
-            </button>
+            </Button>
           </form>
 
           {/* Toggle Login/Register */}
-          <div className="login-footer">
+          <div className="mt-lg flex justify-center">
             <button
               onClick={() => {
                 setIsRegister(!isRegister);
                 setError('');
               }}
-              className="link-btn"
+              className="text-sm text-primary hover:text-secondary transition-colors duration-200 underline"
             >
               {isRegister
                 ? 'Already have an account? Sign in →'
@@ -153,25 +151,9 @@ function LoginPage() {
           {/* Security Badge Footer */}
           <footer className="mt-lg flex justify-center border-t pt-lg"
                   style={{ borderColor: 'var(--slate-200)' }}>
-            <div className="inline-flex items-center px-sm py-xs rounded-full"
-                 style={{
-                   background: 'var(--amber-100)',
-                   color: '#92400e',
-                   fontFamily: 'var(--font-caption)',
-                   fontSize: 'var(--text-xs)',
-                   fontWeight: 'var(--font-medium)',
-                   textTransform: 'uppercase',
-                   letterSpacing: '0.05em',
-                   border: '1px solid var(--amber-300)'
-                 }}>
-              <span className="material-symbols-outlined text-[14px] mr-xs"
-                    style={{ fontVariationSettings: '"FILL" 1' }}>
-                verified_user
-              </span>
-              <span className="tracking-wide">JWT-Secured Environment</span>
-            </div>
+            <StatusBadge status="JWT-Secured Environment" variant="published" />
           </footer>
-        </div>
+        </Card>
       </main>
     </div>
   );
