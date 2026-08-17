@@ -10,6 +10,7 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import NewPRDPage from './pages/NewPRDPage';
 import PRDDetailPage from './pages/PRDDetailPage';
+import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
 
 // Components
@@ -45,6 +46,7 @@ function App() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="prd/new" element={<NewPRDPage />} />
           <Route path="prd/:id" element={<PRDDetailPage />} />
+          <Route path="profile" element={<ProfilePage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
 
