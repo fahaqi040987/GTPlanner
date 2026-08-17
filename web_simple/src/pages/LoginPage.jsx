@@ -1,5 +1,5 @@
 /**
- * Login page component
+ * Login page component - DesignStitch Secure Login design
  */
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -59,87 +59,120 @@ function LoginPage() {
   };
 
   return (
-    <div className="login-page">
-      <div className="login-container card">
-        <div className="login-header">
-          <div className="empty-state-icon">⚡</div>
-          <h1>{isRegister ? 'Create Account' : 'Welcome Back'}</h1>
-          <p className="subtitle">
-            {isRegister
-              ? 'Transform ideas into structured PRDs with AI'
-              : 'Login to your GTPlanner workspace'}
-          </p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden"
+         style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)' }}>
+      {/* Background Texture */}
+      <div className="absolute inset-0 bg-tech-pattern opacity-60 pointer-events-none"></div>
 
-        {error && <div className="error">{error}</div>}
+      {/* Main Card Container */}
+      <main className="w-full max-w-[440px] px-lg md:px-0 relative z-10">
+        <div className="card" style={{ padding: 'var(--space-8)' }}>
+          {/* Branding & Header */}
+          <header className="text-center mb-lg flex flex-col items-center">
+            <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-md"
+                 style={{ background: 'var(--ink-900)' }}>
+              <span className="material-symbols-outlined text-white text-[24px]">
+                terminal
+              </span>
+            </div>
+            <div className="text-xl font-bold mb-md tracking-tight"
+                 style={{ color: 'var(--ink-900)', fontFamily: 'var(--font-display)' }}>
+              GTPlanner
+            </div>
+            <h1 className="text-2xl font-bold mb-sm"
+                style={{ color: 'var(--ink-900)', fontFamily: 'var(--font-display)' }}>
+              Secure Login
+            </h1>
+            <p className="text-sm"
+               style={{ color: 'var(--ink-500)' }}>
+              Authenticate to access engineering workspaces.
+            </p>
+          </header>
 
-        <form onSubmit={handleSubmit} className="login-form">
-          <div className="form-group">
-            <label className="form-label">Email Address</label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className="form-input"
-              required
-              placeholder="you@technical.io"
-            />
+          {error && (
+            <div className="mb-lg error">
+              {error}
+            </div>
+          )}
+
+          {/* Login Form */}
+          <form onSubmit={handleSubmit} className="login-form">
+            <div className="form-group">
+              <label className="form-label" htmlFor="email">Email Address</label>
+              <input
+                id="email"
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                className="form-input"
+                required
+                placeholder="user@gtplanner.dev"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="password">Password</label>
+              <input
+                id="password"
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                className="form-input"
+                required
+                placeholder="••••••••"
+                style={{ fontFamily: 'var(--font-caption)', letterSpacing: '0.05em' }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="btn btn-primary btn-full btn-large"
+              disabled={authMutation.isLoading}
+            >
+              {authMutation.isLoading ? 'Authenticating...' : 'Sign In'}
+            </button>
+          </form>
+
+          {/* Toggle Login/Register */}
+          <div className="login-footer">
+            <button
+              onClick={() => {
+                setIsRegister(!isRegister);
+                setError('');
+              }}
+              className="link-btn"
+            >
+              {isRegister
+                ? 'Already have an account? Sign in →'
+                : "Don't have an account? Sign up →"}
+            </button>
           </div>
 
-          <div className="form-group">
-            <label className="form-label">
-              Password {isRegister && <span className="required">*</span>}
-            </label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              className="form-input"
-              required
-              placeholder="••••••••"
-              minLength={isRegister ? 8 : 1}
-            />
-            {isRegister && (
-              <p className="caption" style={{ marginTop: 'var(--space-2)', color: 'var(--ink-500)' }}>
-                Minimum 8 characters for security
-              </p>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            className="btn btn-primary btn-full btn-large"
-            disabled={authMutation.isLoading}
-          >
-            {authMutation.isLoading ? (
-              <>
-                <span className="spinner-small"></span>
-                {isRegister ? 'Creating Account...' : 'Logging in...'}
-              </>
-            ) : isRegister ? (
-              'Create Account'
-            ) : (
-              'Login to Workspace'
-            )}
-          </button>
-        </form>
-
-        <div className="login-footer">
-          <button
-            onClick={() => {
-              setIsRegister(!isRegister);
-              setError('');
-            }}
-            className="link-btn"
-          >
-            {isRegister
-              ? 'Already have an account? Login →'
-              : "Don't have an account? Sign up →"}
-          </button>
+          {/* Security Badge Footer */}
+          <footer className="mt-lg flex justify-center border-t pt-lg"
+                  style={{ borderColor: 'var(--slate-200)' }}>
+            <div className="inline-flex items-center px-sm py-xs rounded-full"
+                 style={{
+                   background: 'var(--amber-100)',
+                   color: '#92400e',
+                   fontFamily: 'var(--font-caption)',
+                   fontSize: 'var(--text-xs)',
+                   fontWeight: 'var(--font-medium)',
+                   textTransform: 'uppercase',
+                   letterSpacing: '0.05em',
+                   border: '1px solid var(--amber-300)'
+                 }}>
+              <span className="material-symbols-outlined text-[14px] mr-xs"
+                    style={{ fontVariationSettings: '"FILL" 1' }}>
+                verified_user
+              </span>
+              <span className="tracking-wide">JWT-Secured Environment</span>
+            </div>
+          </footer>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
