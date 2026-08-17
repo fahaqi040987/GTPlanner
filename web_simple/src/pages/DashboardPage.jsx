@@ -5,12 +5,14 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { documentAPI } from '../services/api';
+import { useAuthStore } from '../state/authStore';
 import Button from '../components/design-system/Button';
 import DataTable from '../components/design-system/DataTable';
 import StatusBadge from '../components/design-system/StatusBadge';
 
 function DashboardPage() {
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
 
   const { data: documents, isLoading, error } = useQuery({
     queryKey: ['documents'],
@@ -99,7 +101,7 @@ function DashboardPage() {
           </h1>
           <p className="text-body-sm font-body-sm text-on-surface-variant mt-xs">
             Connected as: <span className="font-code-md text-code-md text-secondary">
-              user@example.com
+              {user?.email || 'Loading...'}
             </span>
           </p>
         </div>
@@ -118,11 +120,6 @@ function DashboardPage() {
         data={documents || []}
         onRowClick={handleRowClick}
         loading={isLoading}
-        pagination={{
-          label: 'Showing 1-4 of 24 PRDs',
-          onPrev: null,
-          onNext: () => {}
-        }}
       />
     </div>
   );
