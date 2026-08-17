@@ -9,12 +9,6 @@ import App from './App';
 import './styles/index.css';
 import './styles/design-tokens.css';
 
-// Add Google Fonts
-const link = document.createElement('link');
-link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap';
-link.rel = 'stylesheet';
-document.head.appendChild(link);
-
 // Create React Query client
 const queryClient = new QueryClient({
   defaultOptions: {
