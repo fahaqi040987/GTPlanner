@@ -1,6 +1,24 @@
 /**
- * Global styles
+ * Global styles - Enhanced Design System Integration
  */
+
+/* ========================================
+   ENHANCED DESIGN SYSTEM IMPORTS
+   ========================================
+*/
+
+/* Import enhanced design system first for proper CSS cascade */
+@import './design-system-enhanced.css';
+@import './enhanced-pages.css';
+@import './enhanced-components.css';
+
+/* Original design system (maintained for compatibility) */
+@import './design-system.css';
+
+/* ========================================
+   ORIGINAL GLOBAL STYLES
+   ========================================
+*/
 :root {
   --primary-color: #3b82f6;
   --primary-hover: #2563eb;

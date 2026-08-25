@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .core.config import settings
 from .core.database import init_db
-from .api import auth, prd, documents
+from .api import auth_router as auth, prd_router as prd, documents_router as documents
 
 
 # Create FastAPI application
@@ -49,9 +49,9 @@ async def root():
 
 
 # Include routers
-app.include_router(auth.router)
-app.include_router(prd.router)
-app.include_router(documents.router)
+app.include_router(auth)
+app.include_router(prd)
+app.include_router(documents)
 
 
 # Startup event

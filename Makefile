@@ -36,7 +36,7 @@ COLOR_INFO = \033[36m
 
 dev: ## Start development environment (backend + frontend + db)
 	@echo "$(COLOR_INFO)🚀 Starting GTPlanner development environment...$(COLOR_RESET)"
-	@docker-compose -f $(COMPOSE_DEV) up -d
+	@docker compose -f $(COMPOSE_DEV) up -d
 	@echo "$(COLOR_SUCCESS)✅ Development environment started$(COLOR_RESET)"
 	@echo "$(COLOR_INFO)🌐 Frontend: http://localhost:8080$(COLOR_RESET)"
 	@echo "$(COLOR_INFO)🔧 Backend: http://localhost:11211$(COLOR_RESET)"
@@ -44,40 +44,40 @@ dev: ## Start development environment (backend + frontend + db)
 
 dev-build: ## Rebuild and start development environment
 	@echo "$(COLOR_INFO)🔨 Rebuilding development containers...$(COLOR_RESET)"
-	@docker-compose -f $(COMPOSE_DEV) up -d --build
+	@docker compose -f $(COMPOSE_DEV) up -d --build
 	@echo "$(COLOR_SUCCESS)✅ Development environment rebuilt and started$(COLOR_RESET)"
 
 dev-stop: ## Stop development environment
 	@echo "$(COLOR_WARNING)🛑 Stopping development environment...$(COLOR_RESET)"
-	@docker-compose -f $(COMPOSE_DEV) down
+	@docker compose -f $(COMPOSE_DEV) down
 	@echo "$(COLOR_SUCCESS)✅ Development environment stopped$(COLOR_RESET)"
 
 dev-restart: ## Restart development environment
 	@echo "$(COLOR_INFO)🔄 Restarting development environment...$(COLOR_RESET)"
-	@docker-compose -f $(COMPOSE_DEV) restart
+	@docker compose -f $(COMPOSE_DEV) restart
 	@echo "$(COLOR_SUCCESS)✅ Development environment restarted$(COLOR_RESET)"
 
 
 dev-logs: ## Show logs from all development services
 	@echo "$(COLOR_INFO)📋 Showing development logs (Ctrl+C to exit)...$(COLOR_RESET)"
-	@docker-compose -f $(COMPOSE_DEV) logs -f
+	@docker compose -f $(COMPOSE_DEV) logs -f
 
 dev-logs-backend: ## Show backend logs only
 	@echo "$(COLOR_INFO)📋 Backend logs (Ctrl+C to exit)...$(COLOR_RESET)"
-	@docker-compose -f $(COMPOSE_DEV) logs -f backend
+	@docker compose -f $(COMPOSE_DEV) logs -f backend
 
 dev-logs-frontend: ## Show frontend logs only
 	@echo "$(COLOR_INFO)📋 Frontend logs (Ctrl+C to exit)...$(COLOR_RESET)"
-	@docker-compose -f $(COMPOSE_DEV) logs -f frontend
+	@docker compose -f $(COMPOSE_DEV) logs -f frontend
 
 
 dev-shell: ## Open shell in backend container
 	@echo "$(COLOR_INFO)🐚 Opening shell in backend container...$(COLOR_RESET)"
-	@docker-compose -f $(COMPOSE_DEV) exec backend /bin/bash
+	@docker compose -f $(COMPOSE_DEV) exec backend /bin/bash
 
 dev-psql: ## Open PostgreSQL shell
 	@echo "$(COLOR_INFO)🗄️  Opening PostgreSQL shell...$(COLOR_RESET)"
-	@docker-compose -f $(COMPOSE_DEV) exec db psql -U gtplanner gtplanner_db
+	@docker compose -f $(COMPOSE_DEV) exec db psql -U gtplanner gtplanner_db
 
 
 # =============================================
@@ -90,25 +90,25 @@ prod: ## Show production deployment instructions
 	@echo "1. SSH into your VPS/server"
 	@echo "2. Clone/pull latest code: git pull"
 	@echo "3. Setup production environment: make setup-prod"
-	@echo "4. Deploy: docker-compose -f $(COMPOSE_PROD) up -d --build"
-	@echo "5. Verify: docker-compose -f $(COMPOSE_PROD) logs -f"
+	@echo "4. Deploy: docker compose -f $(COMPOSE_PROD) up -d --build"
+	@echo "5. Verify: docker compose -f $(COMPOSE_PROD) logs -f"
 
 prod-build: ## Build production containers locally
 	@echo "$(COLOR_INFO)🏗️  Building production containers...$(COLOR_RESET)"
-	@docker-compose -f $(COMPOSE_PROD) build
+	@docker compose -f $(COMPOSE_PROD) build
 	@echo "$(COLOR_SUCCESS)✅ Production containers built$(COLOR_RESET)"
 
 prod-logs: ## Show production log viewing instructions
 	@echo "$(COLOR_INFO)📋 To view production logs on your VPS:$(COLOR_RESET)"
-	@echo "docker-compose -f $(COMPOSE_PROD) logs -f"
+	@echo "docker compose -f $(COMPOSE_PROD) logs -f"
 
 prod-stop: ## Show production stop instructions
 	@echo "$(COLOR_INFO)📋 To stop production on your VPS:$(COLOR_RESET)"
-	@echo "docker-compose -f $(COMPOSE_PROD) down"
+	@echo "docker compose -f $(COMPOSE_PROD) down"
 
 prod-restart: ## Show production restart instructions
 	@echo "$(COLOR_INFO)📋 To restart production on your VPS:$(COLOR_RESET)"
-	@echo "docker-compose -f $(COMPOSE_PROD) restart"
+	@echo "docker compose -f $(COMPOSE_PROD) restart"
 
 
 # =============================================
@@ -168,8 +168,8 @@ db-reset: ## Reset development database (⚠️  deletes all data)
 	@read -p "Type 'yes' to confirm: " confirm; \
 	if [ "$$confirm" = "yes" ]; then \
 		echo "$(COLOR_INFO)🗑️  Resetting development database...$(COLOR_RESET)"; \
-		docker-compose -f $(COMPOSE_DEV) down -v; \
-		docker-compose -f $(COMPOSE_DEV) up -d db; \
+		docker compose -f $(COMPOSE_DEV) down -v; \
+		docker compose -f $(COMPOSE_DEV) up -d db; \
 		sleep 5; \
 		echo "$(COLOR_SUCCESS)✅ Development database reset$(COLOR_RESET)"; \
 	else \
@@ -178,11 +178,11 @@ db-reset: ## Reset development database (⚠️  deletes all data)
 
 db-backup: ## Backup production database (run on production server)
 	@echo "$(COLOR_INFO)💾 To backup production database on your VPS:$(COLOR_RESET)"
-	@echo "docker-compose -f $(COMPOSE_PROD) exec db pg_dump -U gtplanner gtplanner_db > backup_$$(date +%Y%m%d).sql"
+	@echo "docker compose -f $(COMPOSE_PROD) exec db pg_dump -U gtplanner gtplanner_db > backup_$$(date +%Y%m%d).sql"
 
 db-restore: ## Show database restore instructions
 	@echo "$(COLOR_INFO)📋 To restore a backup:$(COLOR_RESET)"
-	@echo "docker-compose -f $(COMPOSE_DEV) exec -T db psql -U gtplanner gtplanner_db < backup_file.sql"
+	@echo "docker compose -f $(COMPOSE_DEV) exec -T db psql -U gtplanner gtplanner_db < backup_file.sql"
 
 
 # =============================================
@@ -191,8 +191,8 @@ db-restore: ## Show database restore instructions
 
 clean: ## Stop and remove all containers and volumes
 	@echo "$(COLOR_INFO)🧹 Cleaning up all containers and volumes...$(COLOR_RESET)"
-	@docker-compose -f $(COMPOSE_DEV) down -v
-	@-docker-compose -f $(COMPOSE_PROD) down -v 2>/dev/null || true
+	@docker compose -f $(COMPOSE_DEV) down -v
+	@-docker compose -f $(COMPOSE_PROD) down -v 2>/dev/null || true
 	@echo "$(COLOR_SUCCESS)✅ All containers and volumes removed$(COLOR_RESET)"
 
 logs: ## Show logs from all running services
@@ -208,11 +208,11 @@ ps: ## Show running containers status
 
 test: ## Run backend tests
 	@echo "$(COLOR_INFO)🧪 Running backend tests...$(COLOR_RESET)"
-	@docker-compose -f $(COMPOSE_DEV) exec backend pytest -v
+	@docker compose -f $(COMPOSE_DEV) exec backend pytest -v
 
 shell: ## Open shell in backend container (alias for dev-shell)
 	@echo "$(COLOR_INFO)🐚 Opening shell in backend container...$(COLOR_RESET)"
-	@docker-compose -f $(COMPOSE_DEV) exec backend /bin/bash
+	@docker compose -f $(COMPOSE_DEV) exec backend /bin/bash
 
 
 help: ## Show this help message
