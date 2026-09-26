@@ -1295,6 +1295,7 @@ pre {
   margin: 0 0 var(--space-4) 0;
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
