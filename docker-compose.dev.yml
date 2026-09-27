@@ -1,5 +1,4 @@
 # Simplified GTPlanner Docker Compose - Local Development
-version: '3.8'
 
 services:
   # PostgreSQL Database
@@ -54,11 +53,17 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.frontend
+      args:
+        - VITE_API_BASE_URL=/api
     container_name: gtplanner-frontend-simple
     environment:
       - VITE_API_BASE_URL=/api
     ports:
       - "8080:80"
+    healthcheck:
+      # 127.0.0.1 on purpose: nginx listens on IPv4 only, and busybox wget
+      # resolves localhost to ::1 first, which fails
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/"]
     depends_on:
       - backend
     networks:
