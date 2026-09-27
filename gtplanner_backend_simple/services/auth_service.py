@@ -64,11 +64,18 @@ class AuthService:
         if existing_user:
             raise ValueError("User with this email already exists")
 
+        # First registered user becomes the platform admin (PRD v2.2.0).
+        # Known MVP race: two simultaneous registrations on an empty DB could both
+        # see zero users. Accepted per PRD risk "first-user-becomes-admin race";
+        # register the real admin right after deploy.
+        is_first_user = db.query(User.id).first() is None
+
         # Create new user
         hashed_password = self.get_password_hash(user_data.password)
         db_user = User(
             email=user_data.email,
-            password_hash=hashed_password
+            password_hash=hashed_password,
+            role="admin" if is_first_user else "user"
         )
 
         db.add(db_user)
@@ -95,8 +102,8 @@ class AuthService:
         access_token = self.create_access_token(data={"sub": user.email})
         return Token(access_token=access_token)
 
-    async def get_current_user(self, db: Session, token: str) -> UserResponse:
-        """Get current user from token"""
+    async def get_current_user_model(self, db: Session, token: str) -> User:
+        """Get the current user as an ORM instance (includes role) from a token"""
         email = self.verify_token(token)
         if email is None:
             raise ValueError("Could not validate credentials")
@@ -105,6 +112,11 @@ class AuthService:
         if user is None:
             raise ValueError("User not found")
 
+        return user
+
+    async def get_current_user(self, db: Session, token: str) -> UserResponse:
+        """Get current user from token"""
+        user = await self.get_current_user_model(db, token)
         return UserResponse.model_validate(user)
 
 

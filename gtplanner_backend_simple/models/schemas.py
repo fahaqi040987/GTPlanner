@@ -27,6 +27,7 @@ class UserResponse(UserBase):
     """User response schema"""
     id: int
     is_active: bool
+    role: str = "user"
     created_at: datetime
 
     class Config:
