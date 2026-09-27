@@ -1,9 +1,11 @@
 """
 User model for authentication
 """
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
-from sqlalchemy.orm import relationship
 from datetime import datetime
+
+from sqlalchemy import DateTime, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from .base import Base
 
 
@@ -11,23 +13,26 @@ class User(Base):
     """User model"""
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String(255), unique=True, nullable=False, index=True)
-    password_hash = Column(String(255), nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     # Roles: 'admin' (platform administrator, first registered user) or 'user'
-    role = Column(String(20), nullable=False, default="user", server_default="user", index=True)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    role: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="user", server_default="user", index=True
+    )
+    is_active: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships
     documents = relationship("Document", back_populates="user", cascade="all, delete-orphan")
     sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
+    llm_config = relationship(
+        "UserLLMConfig", back_populates="user", cascade="all, delete-orphan", uselist=False
+    )
 
     @property
     def is_admin(self) -> bool:
-        # str() coerces the legacy-style Column attribute (always a str at
-        # runtime) so type checkers see a plain bool result
-        return str(self.role) == "admin"
+        return self.role == "admin"
 
     def __repr__(self) -> str:
         return f"<User(id={self.id}, email={self.email}, role={self.role})>"

@@ -140,3 +140,67 @@ class ErrorResponse(BaseModel):
     """Error response schema"""
     error: str
     detail: Optional[str] = None
+
+
+# LLM Configuration Schemas (PRD v2.2.0)
+class LLMPresetCreate(BaseModel):
+    """Admin: create an LLM preset"""
+    name: str = Field(..., min_length=1, max_length=100)
+    base_url: str = Field(..., min_length=1, max_length=500)
+    api_key: str = Field(..., min_length=1, max_length=500)
+    model: str = Field(..., min_length=1, max_length=100)
+
+
+class LLMPresetUpdate(BaseModel):
+    """Admin: partial update of an LLM preset"""
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    base_url: Optional[str] = Field(None, min_length=1, max_length=500)
+    api_key: Optional[str] = Field(None, min_length=1, max_length=500)
+    model: Optional[str] = Field(None, min_length=1, max_length=100)
+
+
+class LLMPresetResponse(BaseModel):
+    """LLM preset as returned by the API — key is masked, never full"""
+    id: int
+    name: str
+    base_url: str
+    model: str
+    is_active: bool
+    api_key_masked: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class UserLLMConfigData(BaseModel):
+    """User: personal LLM override (BYO key)"""
+    base_url: str = Field(..., min_length=1, max_length=500)
+    api_key: str = Field(..., min_length=1, max_length=500)
+    model: str = Field(..., min_length=1, max_length=100)
+
+
+class UserLLMConfigResponse(BaseModel):
+    """Personal LLM override as returned by the API — key is masked"""
+    base_url: str
+    model: str
+    api_key_masked: str
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class LLMTestRequest(BaseModel):
+    """Connection test for an arbitrary (usually unsaved) LLM config"""
+    base_url: str = Field(..., min_length=1, max_length=500)
+    api_key: str = Field(..., min_length=1, max_length=500)
+    model: str = Field(..., min_length=1, max_length=100)
+
+
+class LLMTestResult(BaseModel):
+    """Result of an LLM connection test"""
+    success: bool
+    message: str
+    model: Optional[str] = None

@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .core.config import settings
 from .core.database import init_db
-from .api import auth, prd, documents
+from .api import auth, prd, documents, llm_config
 
 
 # Create FastAPI application
@@ -52,6 +52,7 @@ async def root():
 app.include_router(auth.router)
 app.include_router(prd.router)
 app.include_router(documents.router)
+app.include_router(llm_config.router)
 
 
 # Startup event

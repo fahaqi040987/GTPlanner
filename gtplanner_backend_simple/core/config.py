@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
+    # Field-level encryption for stored LLM API keys (Fernet key material).
+    # If unset, a key is derived from SECRET_KEY (fine for dev; set a
+    # dedicated ENCRYPTION_KEY in production — see docs/PRD.md v2.2.0)
+    ENCRYPTION_KEY: Optional[str] = None
+
     # CORS
     CORS_ORIGINS: list = ["http://localhost:5173", "http://localhost:8080"]
 

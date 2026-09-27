@@ -34,7 +34,7 @@ def init_db() -> None:
     """
     Initialize database tables
     """
-    from ..models import user, document, session  # noqa: F401
+    from ..models import user, document, session, llm_config  # noqa: F401
     from ..models.base import Base
 
     Base.metadata.create_all(bind=engine)
