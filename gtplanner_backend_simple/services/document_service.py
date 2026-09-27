@@ -18,8 +18,8 @@ class DocumentService:
         user_id: int,
         title: str,
         content: str,
-        tech_stack: dict = None,
-        recommendations: dict = None
+        tech_stack: dict | None = None,
+        recommendations: dict | None = None
     ) -> PRDResponse:
         """Create a new PRD document"""
         db_document = Document(

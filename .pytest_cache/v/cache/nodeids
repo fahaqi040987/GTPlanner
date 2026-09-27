@@ -28,5 +28,20 @@
   "tests/test_llm_config_api.py::TestResolutionOrder::test_nothing_configured_gives_actionable_error",
   "tests/test_llm_config_api.py::TestResolutionOrder::test_personal_choice_when_selected",
   "tests/test_llm_config_api.py::TestResolutionOrder::test_personal_selected_but_not_configured",
-  "tests/test_llm_config_api.py::TestResolutionOrder::test_resolves_active_preset_by_default"
+  "tests/test_llm_config_api.py::TestResolutionOrder::test_resolves_active_preset_by_default",
+  "tests/test_workflow_api.py::TestClarifyStep::test_answers_at_wrong_step_rejected",
+  "tests/test_workflow_api.py::TestClarifyStep::test_answers_move_to_review_with_drafts",
+  "tests/test_workflow_api.py::TestClarifyStep::test_regenerate_questions",
+  "tests/test_workflow_api.py::TestClarifyStep::test_skip_clarify_goes_straight_to_drafts",
+  "tests/test_workflow_api.py::TestDraftEditing::test_edit_unknown_section_rejected",
+  "tests/test_workflow_api.py::TestDraftEditing::test_manual_draft_edit",
+  "tests/test_workflow_api.py::TestDraftEditing::test_regenerate_section_with_feedback",
+  "tests/test_workflow_api.py::TestFinalize::test_finalize_creates_document",
+  "tests/test_workflow_api.py::TestFinalize::test_finalize_requires_drafts",
+  "tests/test_workflow_api.py::TestLLMChoiceResolution::test_personal_choice_without_config_fails_actionably",
+  "tests/test_workflow_api.py::TestLLMChoiceResolution::test_unused_test_connection_helper_still_mockable",
+  "tests/test_workflow_api.py::TestWorkflowCreation::test_create_generates_clarifying_questions",
+  "tests/test_workflow_api.py::TestWorkflowCreation::test_create_replaces_previous_active",
+  "tests/test_workflow_api.py::TestWorkflowCreation::test_get_current_404_when_none",
+  "tests/test_workflow_api.py::TestWorkflowCreation::test_unauthenticated_401"
 ]

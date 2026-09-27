@@ -204,3 +204,62 @@ class LLMTestResult(BaseModel):
     success: bool
     message: str
     model: Optional[str] = None
+
+
+# Generation Workflow Schemas (PRD v2.1.0)
+class LLMChoice(BaseModel):
+    """Per-generation LLM selection (resolution order in PRD v2.2.0)"""
+    preset_id: Optional[int] = None
+    use_personal: bool = False
+
+
+class WorkflowCreateRequest(BaseModel):
+    """Step 1 — idea intake"""
+    idea: str = Field(..., min_length=10, description="Project description")
+    tech_preferences: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    llm_choice: Optional[LLMChoice] = None
+
+
+class WorkflowAnswersRequest(BaseModel):
+    """Step 2 answers (index-aligned with the clarifying questions)"""
+    answers: List[str] = Field(..., min_length=1)
+
+
+class WorkflowSkipRequest(BaseModel):
+    """Skip an optional workflow step"""
+    step: str = Field(..., description="Step to skip, e.g. 'clarify'")
+
+
+class WorkflowDraftUpdateRequest(BaseModel):
+    """Manually edit one section draft (no LLM call)"""
+    section: str = Field(..., min_length=1)
+    content: str = Field(..., min_length=1)
+
+
+class WorkflowSectionRegenerateRequest(BaseModel):
+    """Regenerate one section draft with optional user feedback"""
+    section: str = Field(..., min_length=1)
+    feedback: Optional[str] = None
+
+
+class WorkflowQuestionsRegenerateRequest(BaseModel):
+    """Regenerate the clarifying questions, optionally with guidance"""
+    feedback: Optional[str] = None
+
+
+class WorkflowResponse(BaseModel):
+    """Current state of the user's generation workflow"""
+    id: int
+    current_step: str
+    idea: str
+    tech_preferences: Optional[Dict[str, Any]] = None
+    llm_choice: Optional[Dict[str, Any]] = None
+    clarifying_questions: Optional[List[str]] = None
+    clarifying_answers: Optional[List[str]] = None
+    drafts: Optional[Dict[str, str]] = None
+    document_id: Optional[int] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
