@@ -17,6 +17,7 @@ from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
 from sqlalchemy.orm import Session
 
+from ..core.json_utils import LLMJSONParseError, parse_llm_json
 from ..models.schemas import (
     PRDGeneration,
     WorkflowResponse,
@@ -34,6 +35,22 @@ SECTIONS = [
     "implementation_plan",
     "success_metrics",
 ]
+
+# Visual PRD artifacts (PRD v2.3.0): mermaid diagram keys, embedded inline
+# next to their related section at finalize
+DIAGRAMS = ["workflow", "architecture", "data_model", "api_sequence"]
+DIAGRAM_TITLES = {
+    "workflow": "Workflow",
+    "architecture": "System Architecture",
+    "data_model": "Data Model",
+    "api_sequence": "API Sequence",
+}
+
+_MERMAID_STARTS = (
+    "flowchart", "graph", "sequenceDiagram", "erDiagram",
+    "classDiagram", "stateDiagram", "journey", "gantt", "pie",
+    "mindmap", "timeline",
+)
 
 _LLM_TIMEOUT_SECONDS = 120.0
 
@@ -262,6 +279,78 @@ class WorkflowService:
         db.refresh(workflow)
         return workflow
 
+    def regenerate_diagram(
+        self,
+        db: Session,
+        user: User,
+        workflow: GenerationWorkflow,
+        diagram: str,
+        feedback: str | None,
+    ) -> GenerationWorkflow:
+        """Regenerate one mermaid diagram from context + feedback (PRD v2.3.0:
+        validate, auto-retry once, error out with a clear message)"""
+        self._require_review_step(workflow)
+        if diagram not in DIAGRAMS:
+            raise WorkflowError(
+                f"Unknown diagram '{diagram}'. Valid: {', '.join(DIAGRAMS)}"
+            )
+        if not workflow.structured_prd:
+            raise WorkflowError("No drafts to regenerate — generate them first")
+
+        base_url, api_key, model = self._resolve_llm(
+            db, user, workflow.llm_choice
+        )
+        source = self._request_diagram(
+            base_url, api_key, model, workflow, diagram, feedback
+        )
+        if not self._validate_mermaid(source):
+            # PRD risk mitigation: auto-retry once before failing
+            source = self._request_diagram(
+                base_url, api_key, model, workflow, diagram, feedback,
+                retry_note=(
+                    "The previous output was not valid mermaid syntax. "
+                    f"It must start with one of: {', '.join(_MERMAID_STARTS)}."
+                ),
+            )
+        if not self._validate_mermaid(source):
+            raise WorkflowError(
+                "LLM error: produced invalid mermaid syntax after retry — "
+                "please try again"
+            )
+
+        diagrams = dict(workflow.diagrams or {})
+        diagrams[diagram] = source.strip()
+        workflow.diagrams = diagrams
+        db.commit()
+        db.refresh(workflow)
+        return workflow
+
+    def update_diagram(
+        self,
+        db: Session,
+        workflow: GenerationWorkflow,
+        diagram: str,
+        content: str,
+    ) -> GenerationWorkflow:
+        """Manual mermaid source edit (validated, no LLM call)"""
+        self._require_review_step(workflow)
+        if diagram not in DIAGRAMS:
+            raise WorkflowError(
+                f"Unknown diagram '{diagram}'. Valid: {', '.join(DIAGRAMS)}"
+            )
+        if not self._validate_mermaid(content):
+            raise WorkflowError(
+                "Diagram must be valid mermaid syntax — the first line must "
+                f"start with one of: {', '.join(_MERMAID_STARTS)}"
+            )
+
+        diagrams = dict(workflow.diagrams or {})
+        diagrams[diagram] = content.strip()
+        workflow.diagrams = diagrams
+        db.commit()
+        db.refresh(workflow)
+        return workflow
+
     # --- Step 4: finalize ---
 
     async def finalize_workflow(
@@ -276,7 +365,9 @@ class WorkflowService:
         title = prd.get("title") or "Untitled Project"
         summary = prd.get("summary") or ""
 
-        content = self._assemble_markdown(title, summary, workflow.drafts or {})
+        content = self._assemble_markdown(
+            title, summary, workflow.drafts or {}, workflow.diagrams
+        )
 
         document = await document_service.create_document(
             db=db,
@@ -380,6 +471,10 @@ class WorkflowService:
             section: self._render_section(section, getattr(prd, section))
             for section in SECTIONS
         }
+        # Visual PRDs (PRD v2.3.0) — fail-soft: drafts survive diagram failures
+        workflow.diagrams = self._generate_diagrams_safe(
+            (base_url, api_key, model), workflow
+        )
         workflow.current_step = "review"
         db.commit()
         db.refresh(workflow)
@@ -451,11 +546,139 @@ class WorkflowService:
 
         content = response.choices[0].message.content or ""
         try:
-            return json.loads(content)
-        except json.JSONDecodeError as e:
+            return parse_llm_json(content)
+        except LLMJSONParseError as e:
             raise WorkflowError(
                 "LLM returned invalid JSON — please retry"
             ) from e
+
+    def _generate_diagrams_safe(
+        self,
+        llm: tuple[str, str, str],
+        workflow: GenerationWorkflow,
+    ) -> dict[str, str]:
+        """Generate the 4 mermaid diagrams; never raises — invalid or failed
+        diagrams are simply omitted (the user can regenerate per diagram)"""
+        base_url, api_key, model = llm
+        try:
+            result = self.call_llm_json(
+                base_url=base_url,
+                api_key=api_key,
+                model=model,
+                system_prompt=(
+                    "You are an expert technical architect who visualizes "
+                    "products as mermaid diagrams. Respond with JSON only."
+                ),
+                user_prompt=(
+                    f"Project idea: {workflow.idea}\n\n"
+                    f"PRD (JSON):\n"
+                    f"{json.dumps(workflow.structured_prd or {}, indent=2)}\n\n"
+                    "Generate 4 mermaid diagrams for this PRD:\n"
+                    '- "workflow": user/product workflow as a flowchart\n'
+                    '- "architecture": system architecture as a flowchart\n'
+                    '- "data_model": core entities as an erDiagram\n'
+                    '- "api_sequence": a key API interaction as a '
+                    'sequenceDiagram\n\n'
+                    "Every value must be valid mermaid syntax — the first "
+                    "line must start with the diagram keyword (flowchart, "
+                    "erDiagram, sequenceDiagram, ...). Keep each diagram "
+                    "under 30 lines.\n"
+                    'Return JSON exactly like: {"workflow": str, '
+                    '"architecture": str, "data_model": str, '
+                    '"api_sequence": str}'
+                ),
+            )
+
+            valid = {
+                key: str(result[key]).strip()
+                for key in DIAGRAMS
+                if key in result and self._validate_mermaid(result[key])
+            }
+            invalid = [k for k in DIAGRAMS if k not in valid]
+
+            if invalid:
+                # PRD risk mitigation: auto-retry once for invalid diagrams
+                retry = self.call_llm_json(
+                    base_url=base_url,
+                    api_key=api_key,
+                    model=model,
+                    system_prompt=(
+                        "You fix mermaid diagrams. Respond with JSON only."
+                    ),
+                    user_prompt=(
+                        f"These outputs were not valid mermaid syntax: "
+                        f"{', '.join(invalid)}.\n\n"
+                        "Regenerate them as valid mermaid (first line must "
+                        "start with the diagram keyword). Context — PRD JSON:\n"
+                        f"{json.dumps(workflow.structured_prd or {}, indent=2)}\n\n"
+                        f'Return JSON with exactly these keys: {invalid}'
+                    ),
+                )
+                for key in invalid:
+                    if key in retry and self._validate_mermaid(retry[key]):
+                        valid[key] = str(retry[key]).strip()
+            return valid
+        except WorkflowError:
+            # Fail-soft: drafts are already stored; diagrams can be
+            # regenerated individually
+            return {}
+
+    def _request_diagram(
+        self,
+        base_url: str,
+        api_key: str,
+        model: str,
+        workflow: GenerationWorkflow,
+        diagram: str,
+        feedback: str | None,
+        retry_note: str | None = None,
+    ) -> str:
+        """Ask the LLM for one diagram; returns the raw source (unvalidated)"""
+        try:
+            result = self.call_llm_json(
+                base_url=base_url,
+                api_key=api_key,
+                model=model,
+                system_prompt=(
+                    "You are an expert technical architect who visualizes "
+                    "products as mermaid diagrams. Respond with JSON only."
+                ),
+                user_prompt=(
+                    f"Project idea: {workflow.idea}\n\n"
+                    f"Current diagrams (JSON):\n"
+                    f"{json.dumps(workflow.diagrams or {}, indent=2)}\n\n"
+                    f"Regenerate ONLY the '{diagram}' diagram"
+                    + (f" ({DIAGRAM_TITLES[diagram]})" if diagram in DIAGRAM_TITLES else "")
+                    + " as valid mermaid syntax"
+                    + (f". {retry_note}" if retry_note else "")
+                    + ".\n"
+                    + (f"User feedback: {feedback}\n" if feedback else "")
+                    + f'Return JSON exactly like: {{"{diagram}": str}}'
+                ),
+            )
+        except WorkflowError:
+            raise
+        except Exception as e:
+            raise WorkflowError(f"LLM error: {e}") from e
+
+        source = result.get(diagram)
+        if not isinstance(source, str) or not source.strip():
+            raise WorkflowError(
+                f"LLM response did not include a '{diagram}' diagram"
+            )
+        return source
+
+    @staticmethod
+    def _validate_mermaid(source) -> bool:
+        """Lightweight syntax gate: non-empty and starts with a known
+        diagram keyword (full rendering validation happens client-side)"""
+        if not isinstance(source, str):
+            return False
+        stripped = source.strip()
+        if len(stripped) < 10:
+            return False
+        first_line = stripped.splitlines()[0].strip()
+        return any(first_line.startswith(k) for k in _MERMAID_STARTS)
 
     def _render_section(self, section: str, value) -> str:
         """Render one structured section value as reviewable markdown"""
@@ -506,23 +729,40 @@ class WorkflowService:
         return str(value)
 
     def _assemble_markdown(
-        self, title: str, summary: str, drafts: dict[str, str]
+        self,
+        title: str,
+        summary: str,
+        drafts: dict[str, str],
+        diagrams: dict[str, str] | None = None,
     ) -> str:
-        """Final document markdown from title/summary + reviewed drafts"""
-        sections = [
-            (heading, drafts.get(key, ""))
-            for heading, key in (
-                ("Requirements", "requirements"),
-                ("Technology Stack", "tech_stack"),
-                ("Infrastructure Recommendations", "infrastructure"),
-                ("Implementation Plan", "implementation_plan"),
-                ("Success Metrics", "success_metrics"),
-            )
-        ]
-        body = "\n\n".join(
-            f"## {heading}\n\n{content}" for heading, content in sections
-        )
-        return f"# {title}\n\n## Summary\n\n{summary}\n\n{body}\n"
+        """Final document markdown: reviewed drafts with diagrams embedded
+        inline next to their related sections (PRD v2.3.0, lean-inline
+        placement assumed per PRD Open Question #9)"""
+        diagrams = diagrams or {}
+
+        def mermaid_block(key):
+            return f"```mermaid\n{diagrams[key]}\n```"
+
+        blocks = [f"# {title}", "## Summary", summary]
+
+        if "workflow" in diagrams:
+            blocks += [f"### {DIAGRAM_TITLES['workflow']}", mermaid_block("workflow")]
+
+        for heading, key, diagram_key in (
+            ("Requirements", "requirements", "api_sequence"),
+            ("Technology Stack", "tech_stack", "data_model"),
+            ("Infrastructure Recommendations", "infrastructure", "architecture"),
+            ("Implementation Plan", "implementation_plan", None),
+            ("Success Metrics", "success_metrics", None),
+        ):
+            blocks += [f"## {heading}", drafts.get(key, "")]
+            if diagram_key and diagram_key in diagrams:
+                blocks += [
+                    f"### {DIAGRAM_TITLES[diagram_key]}",
+                    mermaid_block(diagram_key),
+                ]
+
+        return "\n\n".join(blocks) + "\n"
 
 
 # Global instance

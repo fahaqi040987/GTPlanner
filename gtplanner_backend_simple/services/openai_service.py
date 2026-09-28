@@ -5,6 +5,7 @@ import json
 from openai import OpenAI
 from typing import Dict, Any
 from ..core.config import settings
+from ..core.json_utils import parse_llm_json
 from ..models.schemas import PRDGeneration
 
 
@@ -49,9 +50,10 @@ class OpenAIService:
                 max_tokens=4000
             )
 
-            # Parse structured response
-            content = response.choices[0].message.content
-            prd_data = json.loads(content)
+            # Parse structured response (tolerates fences/trailing prose
+            # from providers that ignore response_format json_object)
+            content = response.choices[0].message.content or ""
+            prd_data = parse_llm_json(content)
 
             return PRDGeneration(**prd_data)
 
@@ -101,8 +103,8 @@ Please provide a refined PRD that addresses the user's feedback while maintainin
                 max_tokens=4000
             )
 
-            content = response.choices[0].message.content
-            prd_data = json.loads(content)
+            content = response.choices[0].message.content or ""
+            prd_data = parse_llm_json(content)
 
             return PRDGeneration(**prd_data)
 

@@ -125,6 +125,24 @@ class TestAdminOnlyAccess:
         assert response.status_code == 200
         assert response.json() == []
 
+    def test_regular_user_sees_public_preset_list(self, db, member_user):
+        """Wizard picker: names/models only — no URLs, no keys"""
+        llm_config_service.create_preset(db, LLMPresetCreate(**PRESET_PAYLOAD))
+
+        response = client.get(
+            "/api/llm/presets", headers=auth_headers(member_user.email)
+        )
+
+        assert response.status_code == 200
+        presets = response.json()
+        assert len(presets) == 1
+        preset = presets[0]
+        assert set(preset.keys()) == {"id", "name", "model", "is_active"}
+        assert preset["name"] == "Strong"
+        assert preset["is_active"] is True
+        assert "base_url" not in preset
+        assert "api_key_masked" not in preset
+
 
 class TestPresetCRUD:
     """Create/update/delete presets with masked, encrypted keys"""

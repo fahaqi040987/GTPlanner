@@ -15,8 +15,10 @@ import SettingsPage from './pages/SettingsPage';
 
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
 import AppShell from './components/layout/AppShell';
 import NavigationBar from './components/NavigationBar';
+import AdminLLMPage from './pages/AdminLLMPage';
 
 function App() {
   const { isAuthenticated } = useAuthStore();
@@ -48,6 +50,9 @@ function App() {
           <Route path="prd/:id" element={<PRDDetailPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route element={<AdminRoute />}>
+            <Route path="admin/llm" element={<AdminLLMPage />} />
+          </Route>
         </Route>
 
         {/* Catch all */}

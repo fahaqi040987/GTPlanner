@@ -38,6 +38,9 @@ class GenerationWorkflow(Base):
 
     # Step 3 — reviewable section drafts (markdown per section)
     drafts: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # Visual PRD artifacts (PRD v2.3.0): mermaid sources per diagram key
+    # (workflow, architecture, data_model, api_sequence)
+    diagrams: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     # Structured payload kept alongside drafts so sections can be
     # regenerated without re-parsing markdown (PRD v2.1.0)
     structured_prd: Mapped[dict | None] = mapped_column(JSON, nullable=True)

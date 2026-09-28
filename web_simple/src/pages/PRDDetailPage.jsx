@@ -11,6 +11,7 @@ import Card from '../components/design-system/Card';
 import StatusBadge from '../components/design-system/StatusBadge';
 import ExportMenu from '../components/ExportMenu';
 import CopyMarkdownButton from '../components/CopyMarkdownButton';
+import MermaidDiagram from '../components/MermaidDiagram';
 
 function PRDDetailPage() {
   const { id } = useParams();
@@ -219,7 +220,22 @@ function PRDDetailPage() {
               </div>
             ) : (
               <div className="prose prose-sm max-w-none">
-                <ReactMarkdown>{prdData.content}</ReactMarkdown>
+                <ReactMarkdown
+                  components={{
+                    // Render ```mermaid blocks as diagrams (PRD v2.3.0);
+                    // everything else falls through to the default <code>
+                    code({ className, children, ...props }) {
+                      const isMermaid = /language-mermaid/.test(className || '');
+                      if (isMermaid) {
+                        const text = String(children ?? '').replace(/\n$/, '');
+                        return <MermaidDiagram code={text} />;
+                      }
+                      return <code className={className} {...props}>{children}</code>;
+                    },
+                  }}
+                >
+                  {prdData.content}
+                </ReactMarkdown>
               </div>
             )}
           </Card>

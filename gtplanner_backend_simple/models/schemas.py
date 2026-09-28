@@ -174,6 +174,14 @@ class LLMPresetResponse(BaseModel):
         from_attributes = True
 
 
+class LLMPresetPublicResponse(BaseModel):
+    """Preset summary for regular users (wizard picker) — no URLs, no keys"""
+    id: int
+    name: str
+    model: str
+    is_active: bool
+
+
 class UserLLMConfigData(BaseModel):
     """User: personal LLM override (BYO key)"""
     base_url: str = Field(..., min_length=1, max_length=500)
@@ -242,6 +250,18 @@ class WorkflowSectionRegenerateRequest(BaseModel):
     feedback: Optional[str] = None
 
 
+class WorkflowDiagramUpdateRequest(BaseModel):
+    """Manually edit one mermaid diagram (validated, no LLM call)"""
+    diagram: str = Field(..., min_length=1)
+    content: str = Field(..., min_length=1)
+
+
+class WorkflowDiagramRegenerateRequest(BaseModel):
+    """Regenerate one mermaid diagram with optional user feedback"""
+    diagram: str = Field(..., min_length=1)
+    feedback: Optional[str] = None
+
+
 class WorkflowQuestionsRegenerateRequest(BaseModel):
     """Regenerate the clarifying questions, optionally with guidance"""
     feedback: Optional[str] = None
@@ -257,6 +277,7 @@ class WorkflowResponse(BaseModel):
     clarifying_questions: Optional[List[str]] = None
     clarifying_answers: Optional[List[str]] = None
     drafts: Optional[Dict[str, str]] = None
+    diagrams: Optional[Dict[str, str]] = None
     document_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime

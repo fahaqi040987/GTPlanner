@@ -53,6 +53,44 @@ export const prdAPI = {
   regenerate: (id, data) => api.post(`/api/prd/regenerate/${id}`, data),
 };
 
+// Generation Workflow APIs (PRD v2.1.0)
+export const workflowAPI = {
+  create: (data) => api.post('/api/prd-workflow', data),
+  getCurrent: () => api.get('/api/prd-workflow/current'),
+  deleteCurrent: () => api.delete('/api/prd-workflow/current'),
+  submitAnswers: (answers) =>
+    api.post('/api/prd-workflow/current/answers', { answers }),
+  skipStep: (step) => api.post('/api/prd-workflow/current/skip', { step }),
+  regenerateQuestions: (feedback) =>
+    api.post('/api/prd-workflow/current/regenerate-questions', { feedback }),
+  updateDraft: (section, content) =>
+    api.post('/api/prd-workflow/current/drafts', { section, content }),
+  regenerateSection: (section, feedback) =>
+    api.post('/api/prd-workflow/current/regenerate-section', { section, feedback }),
+  updateDiagram: (diagram, content) =>
+    api.post('/api/prd-workflow/current/diagrams', { diagram, content }),
+  regenerateDiagram: (diagram, feedback) =>
+    api.post('/api/prd-workflow/current/regenerate-diagram', { diagram, feedback }),
+  finalize: () => api.post('/api/prd-workflow/current/finalize'),
+};
+
+// LLM configuration APIs (PRD v2.2.0)
+export const llmConfigAPI = {
+  // admin: preset management
+  getPresets: () => api.get('/api/admin/llm/presets'),
+  createPreset: (data) => api.post('/api/admin/llm/presets', data),
+  updatePreset: (id, data) => api.put(`/api/admin/llm/presets/${id}`, data),
+  deletePreset: (id) => api.delete(`/api/admin/llm/presets/${id}`),
+  activatePreset: (id) => api.post(`/api/admin/llm/presets/${id}/activate`),
+  testPreset: (id) => api.post(`/api/admin/llm/presets/${id}/test`),
+  // any user: picker data + connection test + personal override
+  getPublicPresets: () => api.get('/api/llm/presets'),
+  testConfig: (data) => api.post('/api/llm/test', data),
+  getMyConfig: () => api.get('/api/me/llm-config'),
+  saveMyConfig: (data) => api.put('/api/me/llm-config', data),
+  deleteMyConfig: () => api.delete('/api/me/llm-config'),
+};
+
 // Document APIs
 export const documentAPI = {
   list: (params) => api.get('/api/documents', { params }),

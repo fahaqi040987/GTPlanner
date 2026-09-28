@@ -1,11 +1,14 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { useAuthStore } from '../../state/authStore';
 
 /**
  * DesignStitch SideNavBar component
  * Left navigation sidebar with branding and links
  */
 const SideNavBar = ({ isOpen = true, onClose = () => {} }) => {
+  const user = useAuthStore((state) => state.user);
+
   const navClasses = `
     fixed left-0 top-0 h-full w-[280px] bg-primary flex flex-col py-6 z-20
     transition-transform duration-300 md:translate-x-0
@@ -17,6 +20,16 @@ const SideNavBar = ({ isOpen = true, onClose = () => {} }) => {
     { path: '/sessions', label: 'Sessions', icon: 'history', active: false },
     { path: '/profile', label: 'Profile', icon: 'person', active: false },
   ];
+
+  // Admin-only link (PRD v2.2.0)
+  if (user?.role === 'admin') {
+    navLinks.push({
+      path: '/admin/llm',
+      label: 'LLM Presets',
+      icon: 'tune',
+      active: false,
+    });
+  }
 
   return (
     <>
