@@ -122,8 +122,8 @@ workspace/memory-bank/*
 test_workspace/
 
 # Old directories (cleaned up in refactor)
-api/
-document_embedding/
+/api/
+/document_embedding/
 history/*
 docs/*
 

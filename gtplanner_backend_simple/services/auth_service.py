@@ -1,11 +1,12 @@
 """
 Authentication service for user management
 """
-from datetime import datetime, timedelta
-from typing import Optional
-from jose import JWTError, jwt
+from datetime import datetime, timedelta, timezone
+
 import bcrypt
+from jose import JWTError, jwt
 from sqlalchemy.orm import Session
+
 from ..core.config import settings
 from ..models.user import User
 from ..models.schemas import UserCreate, Token, UserResponse
@@ -24,7 +25,8 @@ class AuthService:
         """Verify a password against a hash"""
         try:
             return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
-        except Exception:
+        except (ValueError, TypeError):
+            # bcrypt raises ValueError for malformed hash strings
             return False
 
     def get_password_hash(self, password: str) -> str:
@@ -34,28 +36,29 @@ class AuthService:
         hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
         return hashed.decode('utf-8')
 
-    def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    def create_access_token(self, data: dict, expires_delta: timedelta | None = None) -> str:
         """Create a JWT access token"""
         to_encode = data.copy()
         if expires_delta:
-            expire = datetime.utcnow() + expires_delta
+            expire = datetime.now(timezone.utc) + expires_delta
         else:
-            expire = datetime.utcnow() + timedelta(minutes=self.access_token_expire_minutes)
+            expire = datetime.now(timezone.utc) + timedelta(minutes=self.access_token_expire_minutes)
 
         to_encode.update({"exp": expire})
         encoded_jwt = jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
         return encoded_jwt
 
-    def verify_token(self, token: str) -> Optional[str]:
+    def verify_token(self, token: str) -> str | None:
         """Verify and decode a JWT token"""
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
-            email: str = payload.get("sub")
-            if email is None:
-                return None
-            return email
         except JWTError:
             return None
+
+        sub = payload.get("sub")
+        if not isinstance(sub, str):
+            return None
+        return sub
 
     async def register_user(self, db: Session, user_data: UserCreate) -> UserResponse:
         """Register a new user"""
@@ -84,7 +87,7 @@ class AuthService:
 
         return UserResponse.model_validate(db_user)
 
-    async def authenticate_user(self, db: Session, email: str, password: str) -> Optional[User]:
+    async def authenticate_user(self, db: Session, email: str, password: str) -> User | None:
         """Authenticate a user"""
         user = db.query(User).filter(User.email == email).first()
         if not user:

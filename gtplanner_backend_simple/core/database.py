@@ -34,13 +34,15 @@ def init_db() -> None:
     """
     Initialize database tables
     """
-    from ..models import user, document, session, llm_config, workflow  # noqa: F401
+    from ..models import user, document, llm_config, workflow  # noqa: F401
     from ..models.base import Base
 
     Base.metadata.create_all(bind=engine)
     _ensure_user_role_column()
 
 
+# Sole remaining hand-rolled migration — replace with Alembic when
+# migrations are introduced.
 def _ensure_user_role_column() -> None:
     """
     Bootstrap migration for databases created before roles existed (PRD v2.2.0).

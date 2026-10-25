@@ -76,7 +76,7 @@ async def shutdown_event():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
-        "main:app",
+        "gtplanner_backend_simple.main:app",
         host="0.0.0.0",
         port=11211,
         reload=settings.DEBUG,

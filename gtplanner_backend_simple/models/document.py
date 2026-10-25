@@ -26,9 +26,6 @@ class Document(Base):
 
     # Relationships
     user = relationship("User", back_populates="documents")
-    sessions = relationship(
-        "Session", back_populates="document", cascade="all, delete-orphan"
-    )
 
     def __repr__(self) -> str:
         return f"<Document(id={self.id}, title={self.title}, user_id={self.user_id})>"

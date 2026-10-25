@@ -25,7 +25,6 @@ class User(Base):
 
     # Relationships
     documents = relationship("Document", back_populates="user", cascade="all, delete-orphan")
-    sessions = relationship("Session", back_populates="user", cascade="all, delete-orphan")
     llm_config = relationship(
         "UserLLMConfig", back_populates="user", cascade="all, delete-orphan", uselist=False
     )

@@ -36,12 +36,18 @@ class DocumentService:
 
         return PRDResponse.model_validate(db_document)
 
-    async def get_document(self, db: Session, document_id: int, user_id: int) -> Optional[PRDResponse]:
-        """Get a specific document by ID"""
-        document = db.query(Document).filter(
+    def _get_owned(
+        self, db: Session, document_id: int, user_id: int
+    ) -> Optional[Document]:
+        """The user's document by id, or None (single ownership filter)"""
+        return db.query(Document).filter(
             Document.id == document_id,
             Document.user_id == user_id
         ).first()
+
+    async def get_document(self, db: Session, document_id: int, user_id: int) -> Optional[PRDResponse]:
+        """Get a specific document by ID"""
+        document = self._get_owned(db, document_id, user_id)
 
         if not document:
             return None
@@ -79,10 +85,7 @@ class DocumentService:
         update_data: PRDUpdate
     ) -> Optional[PRDResponse]:
         """Update a document"""
-        document = db.query(Document).filter(
-            Document.id == document_id,
-            Document.user_id == user_id
-        ).first()
+        document = self._get_owned(db, document_id, user_id)
 
         if not document:
             return None
@@ -106,10 +109,7 @@ class DocumentService:
 
     async def delete_document(self, db: Session, document_id: int, user_id: int) -> bool:
         """Delete a document"""
-        document = db.query(Document).filter(
-            Document.id == document_id,
-            Document.user_id == user_id
-        ).first()
+        document = self._get_owned(db, document_id, user_id)
 
         if not document:
             return False

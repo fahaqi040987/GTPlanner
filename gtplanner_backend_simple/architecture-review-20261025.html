@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GTPlanner — Architecture Deepening Review (2026-10-25)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral', flowchart: { curve: 'basis' } });
+</script>
+<style>
+  .massbar { transition: all .3s ease; }
+  .chip { font-size: 0.7rem; }
+</style>
+</head>
+<body class="bg-slate-100 text-slate-800">
+
+<!-- ============ HEADER ============ -->
+<header class="bg-slate-900 text-slate-100">
+  <div class="max-w-6xl mx-auto px-6 py-10">
+    <p class="text-xs uppercase tracking-widest text-slate-400 mb-2">Improve Codebase Architecture · Deepening Opportunities</p>
+    <h1 class="text-3xl font-bold mb-1">GTPlanner — Architecture Review</h1>
+    <p class="text-slate-400 text-sm mb-6">2026-10-25 · scope weighted to the active subsystem <code class="text-slate-300">gtplanner_backend_simple/</code> + its tests and frontend contract</p>
+
+    <!-- Tech stack chips -->
+    <div class="flex flex-wrap gap-2 text-xs">
+      <span class="px-2.5 py-1 rounded-full bg-slate-800 text-sky-300">FastAPI 0.115.9 · Python 3.11</span>
+      <span class="px-2.5 py-1 rounded-full bg-slate-800 text-emerald-300">PostgreSQL 15 · SQLAlchemy 2</span>
+      <span class="px-2.5 py-1 rounded-full bg-slate-800 text-amber-300">React 18 · Vite 5 · Zustand · React Query</span>
+      <span class="px-2.5 py-1 rounded-full bg-slate-800 text-rose-300">python-jose JWT · bcrypt 5</span>
+      <span class="px-2.5 py-1 rounded-full bg-slate-800 text-violet-300">pydantic-settings 2.9.1</span>
+      <span class="px-2.5 py-1 rounded-full bg-slate-800 text-teal-300">Docker · 4 containers</span>
+    </div>
+
+    <!-- Critical finding -->
+    <div class="mt-6 rounded-lg border border-rose-500/40 bg-rose-950/60 p-4">
+      <p class="text-rose-300 font-semibold text-sm mb-1">⛔ Blocking finding: the route layer does not exist</p>
+      <p class="text-slate-300 text-sm leading-relaxed">
+        <code>gtplanner_backend_simple/api/</code> is an <strong>empty directory</strong> — no <code>auth.py</code>, <code>prd.py</code>,
+        <code>documents.py</code>, <code>llm_config.py</code>, <code>workflow.py</code>, not even <code>__init__.py</code>. A full-repo search finds
+        <strong>zero <code>APIRouter</code> definitions</strong>, yet <code>main.py</code> mounts five. Result: <code>ModuleNotFoundError</code> at import —
+        <strong>the backend cannot boot anywhere</strong>, and the 9 test files importing <code>main.app</code> die at collection.
+        The API contract survives only inside <code>web_simple/src/services/api.js</code> (~25 endpoints) and test assertions.
+      </p>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-6 py-10 space-y-8">
+
+<!-- ============ C1 ============ -->
+<section class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+  <div class="flex items-start justify-between gap-4 mb-4">
+    <h2 class="text-xl font-bold">C1 · Restore the route layer as the explicit contract seam</h2>
+    <span class="chip px-3 py-1 rounded-full font-semibold bg-emerald-100 text-emerald-800 whitespace-nowrap">Strong</span>
+  </div>
+  <div class="grid md:grid-cols-2 gap-6 text-sm">
+    <div class="space-y-3">
+      <p><span class="font-semibold">Files:</span> <code>gtplanner_backend_simple/api/*</code> (missing), <code>main.py</code>, <code>web_simple/src/services/api.js</code></p>
+      <p><span class="font-semibold">Problem:</span> The interface between frontend and backend has no module — the seam lives implicitly inside <code>api.js</code> and test assertions. Contract drift is undetectable, and nothing boots. Routes should be <em>deliberately shallow adapters</em>: parse → call service → map errors.</p>
+      <p><span class="font-semibold">Solution:</span> Recreate the five router modules + <code>api/deps.py</code> (auth/admin dependency), generated against <code>api.js</code>. Add one contract test asserting every <code>api.js</code> path exists in the OpenAPI schema.</p>
+      <p><span class="font-semibold">Benefits:</span> <em>Locality</em> — the contract lives in one place. High <em>leverage</em> — unblocks boot and 8 broken test files. Tests go from collection-error to meaningful.</p>
+      <p class="text-slate-500"><span class="font-semibold">Deletion test:</span> complexity is missing, not misplaced — this is reconstruction before deepening.</p>
+    </div>
+    <div class="space-y-2">
+      <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Before → After</p>
+      <div class="grid grid-cols-2 gap-2">
+        <div class="rounded-lg bg-rose-50 border border-rose-200 p-2">
+          <p class="text-[10px] font-bold text-rose-700 mb-1">BEFORE</p>
+          <pre class="mermaid text-xs">flowchart TB
+  FE["web_simple api.js<br/>~25 endpoints"] -.->|implicit contract| X["✗ api/ empty"]
+  X -.-> M["main.py<br/>include_router ×5"]
+  style X fill:#fee2e2,stroke:#dc2626,color:#b91c1c</pre>
+        </div>
+        <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-2">
+          <p class="text-[10px] font-bold text-emerald-700 mb-1">AFTER</p>
+          <pre class="mermaid text-xs">flowchart TB
+  FE["web_simple api.js"] --> R["api/ routers<br/>+ deps.py seam"]
+  R --> S["services/"]
+  CT["contract test<br/>api.js ↔ OpenAPI"] -.-> R
+  style R fill:#d1fae5,stroke:#059669</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ C2 ============ -->
+<section class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+  <div class="flex items-start justify-between gap-4 mb-4">
+    <h2 class="text-xl font-bold">C2 · Kill import-time singletons; inject a settings/provider seam</h2>
+    <span class="chip px-3 py-1 rounded-full font-semibold bg-emerald-100 text-emerald-800 whitespace-nowrap">Strong</span>
+  </div>
+  <div class="grid md:grid-cols-2 gap-6 text-sm">
+    <div class="space-y-3">
+      <p><span class="font-semibold">Files:</span> <code>core/config.py</code> (module-level <code>settings = get_settings()</code>), <code>services/auth_service.py</code>, <code>core/encryption.py</code>, <code>services/openai_service.py</code> — all construct singletons at import</p>
+      <p><span class="font-semibold">Problem:</span> Importing any service executes config validation and builds clients. Tests must pre-set <code>OPENAI_API_KEY</code> just to import, then patch singleton attributes with no restore (<code>test_auth_api.py</code>) — classic no-<em>seam</em>, cross-file test pollution. No <em>locality</em>: wiring is smeared across import time.</p>
+      <p><span class="font-semibold">Solution:</span> <code>get_settings()</code> with <code>lru_cache</code>; services take settings/db/client via <code>__init__</code>; FastAPI <code>Depends</code> providers in <code>api/deps.py</code> become the single wiring point.</p>
+      <p><span class="font-semibold">Benefits:</span> Fresh instances per test instead of monkey-patch-and-pray; config errors surface at call time with actionable messages; wiring has one address.</p>
+      <p class="text-slate-500"><span class="font-semibold">Deletion test:</span> deleting the four singleton instantiations <em>concentrates</em> wiring into one provider module — passes.</p>
+    </div>
+    <div class="space-y-2">
+      <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Before → After</p>
+      <div class="grid grid-cols-2 gap-2">
+        <div class="rounded-lg bg-rose-50 border border-rose-200 p-2">
+          <p class="text-[10px] font-bold text-rose-700 mb-1">BEFORE</p>
+          <pre class="mermaid text-xs">flowchart TB
+  T["any test / route"] -->|import| S1["auth_service singleton"]
+  T -->|import| S2["openai_service singleton"]
+  S1 --> C["config validated<br/>AT IMPORT TIME"]
+  S2 --> C
+  T -.->|"patch attr,<br/>never restore"| S1
+  style C fill:#fee2e2,stroke:#dc2626</pre>
+        </div>
+        <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-2">
+          <p class="text-[10px] font-bold text-emerald-700 mb-1">AFTER</p>
+          <pre class="mermaid text-xs">flowchart TB
+  D["api/deps.py<br/>Depends providers"] --> A["AuthService(settings)"]
+  D --> O["OpenAIService(client)"]
+  D --> SET["get_settings()<br/>lru_cache"]
+  T2["tests build their own<br/>instances"] --> A
+  style D fill:#d1fae5,stroke:#059669</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ C3 ============ -->
+<section class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+  <div class="flex items-start justify-between gap-4 mb-4">
+    <h2 class="text-xl font-bold">C3 · One deep PRD generator behind one seam</h2>
+    <span class="chip px-3 py-1 rounded-full font-semibold bg-emerald-100 text-emerald-800 whitespace-nowrap">Strong</span>
+  </div>
+  <div class="grid md:grid-cols-2 gap-6 text-sm">
+    <div class="space-y-3">
+      <p><span class="font-semibold">Files:</span> <code>services/openai_service.py</code> (183 L), <code>services/workflow_service.py</code> (L411–480)</p>
+      <p><span class="font-semibold">Problem:</span> Two parallel generation paths, each embedding its own copy of the PRD JSON-schema prompt — pure contract-drift risk. <code>openai_service</code> is <code>async def</code> wrapping the <em>sync</em> OpenAI client (blocks the event loop) and does <code>except Exception → raise Exception</code>. Meanwhile <code>workflow_service</code> already has the right <em>seam</em> (<code>call_llm_json</code>) — the good pattern is trapped inside the wrong module.</p>
+      <p><span class="font-semibold">Solution:</span> One <code>PRDGenerator</code> module: prompt templates as data, <code>call_llm_json</code> (or an injected LLM client <em>interface</em>) as the only I/O seam, <code>parse_llm_json</code> inside. Both the simple route and the generation workflow consume it.</p>
+      <p><span class="font-semibold">Benefits:</span> One place to fix prompting (the product's core!); tests mock the client <em>interface</em> instead of patching methods; async fixes apply once.</p>
+      <p class="text-slate-500"><span class="font-semibold">Deletion test:</span> deleting <code>openai_service</code> concentrates generation logic — passes.</p>
+    </div>
+    <div class="space-y-2">
+      <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Duplicated-prompt mass → concentrated</p>
+      <div class="rounded-lg bg-rose-50 border border-rose-200 p-3">
+        <p class="text-[10px] font-bold text-rose-700 mb-2">BEFORE — prompt logic duplicated across two modules</p>
+        <div class="flex gap-2">
+          <div class="flex-1 rounded bg-white border border-rose-300 p-2 text-xs">
+            <p class="font-semibold">openai_service.py</p>
+            <div class="massbar mt-1 h-6 rounded bg-rose-400/70 flex items-center px-2 text-[10px] text-white">PRD prompt copy #1</div>
+            <div class="massbar mt-1 h-4 rounded bg-slate-300 flex items-center px-2 text-[10px]">client I/O (sync!)</div>
+            <div class="massbar mt-1 h-4 rounded bg-slate-300 flex items-center px-2 text-[10px]">json parsing</div>
+          </div>
+          <div class="flex-1 rounded bg-white border border-rose-300 p-2 text-xs">
+            <p class="font-semibold">workflow_service.py</p>
+            <div class="massbar mt-1 h-6 rounded bg-rose-400/70 flex items-center px-2 text-[10px] text-white">PRD prompt copy #2</div>
+            <div class="massbar mt-1 h-4 rounded bg-emerald-300 flex items-center px-2 text-[10px]">call_llm_json ✓</div>
+          </div>
+        </div>
+      </div>
+      <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-3">
+        <p class="text-[10px] font-bold text-emerald-700 mb-2">AFTER — one deep module, one seam</p>
+        <div class="rounded bg-white border border-emerald-300 p-2 text-xs">
+          <p class="font-semibold">PRDGenerator</p>
+          <div class="massbar mt-1 h-8 rounded bg-emerald-400/80 flex items-center px-2 text-[10px] text-white">prompts as data · schema · parse_llm_json</div>
+          <div class="mt-1 text-center text-[10px] text-slate-500">↓ single I/O seam</div>
+          <div class="massbar h-5 rounded bg-slate-700 flex items-center px-2 text-[10px] text-white">LLM client interface (mockable)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ C4 ============ -->
+<section class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+  <div class="flex items-start justify-between gap-4 mb-4">
+    <h2 class="text-xl font-bold">C4 · Split the workflow god module along its existing seams</h2>
+    <span class="chip px-3 py-1 rounded-full font-semibold bg-amber-100 text-amber-800 whitespace-nowrap">Worth exploring</span>
+  </div>
+  <div class="grid md:grid-cols-2 gap-6 text-sm">
+    <div class="space-y-3">
+      <p><span class="font-semibold">Files:</span> <code>services/workflow_service.py</code> (765 L, 25 methods)</p>
+      <p><span class="font-semibold">Problem:</span> State CRUD + prompt building + mermaid validation + markdown assembly + diagram orchestration in one class. <em>Shallow</em> at the class level: interface ≈ implementation complexity. No <em>locality</em> — understanding "finalize" requires the whole file.</p>
+      <p><span class="font-semibold">Solution:</span> Keep a slim orchestrator; extract the workflow state repository, a prompts module (shared with C3), and a diagrams module (validate / request / regenerate). The existing constants <code>SECTIONS</code> / <code>DIAGRAMS</code> and <code>call_llm_json</code> are the natural cut lines.</p>
+      <p><span class="font-semibold">Benefits:</span> Each part unit-testable without LLM mocks; AI-navigability — module names map to PRD concepts (generation workflow, section drafts, diagram).</p>
+      <p class="text-slate-500"><span class="font-semibold">Deletion test:</span> deleting the whole module just moves 765 lines — must be <em>split</em>, not deleted.</p>
+    </div>
+    <div class="space-y-2">
+      <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Mass split</p>
+      <div class="rounded-lg bg-slate-50 border border-slate-200 p-3">
+        <p class="text-[10px] font-bold text-slate-600 mb-2">BEFORE — 765 lines, one module</p>
+        <div class="massbar h-9 rounded bg-gradient-to-r from-rose-400 via-amber-400 to-sky-400 flex items-center px-2 text-[10px] font-semibold text-white">workflow_service.py — CRUD · prompts · mermaid · markdown · orchestration</div>
+      </div>
+      <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-3">
+        <p class="text-[10px] font-bold text-emerald-700 mb-2">AFTER — cut along existing seams</p>
+        <div class="space-y-1">
+          <div class="massbar h-7 rounded bg-sky-400/80 flex items-center px-2 text-[10px] font-semibold text-white">workflow repository (state CRUD)</div>
+          <div class="massbar h-7 rounded bg-amber-400/80 flex items-center px-2 text-[10px] font-semibold text-white">prompts (shared with PRDGenerator)</div>
+          <div class="massbar h-7 rounded bg-violet-400/80 flex items-center px-2 text-[10px] font-semibold text-white">diagrams (validate · request · regenerate)</div>
+          <div class="massbar h-5 rounded bg-emerald-500/80 flex items-center px-2 text-[10px] font-semibold text-white">slim orchestrator</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ C5 ============ -->
+<section class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+  <div class="flex items-start justify-between gap-4 mb-4">
+    <h2 class="text-xl font-bold">C5 · One schema source of truth</h2>
+    <span class="chip px-3 py-1 rounded-full font-semibold bg-amber-100 text-amber-800 whitespace-nowrap">Worth exploring</span>
+  </div>
+  <div class="grid md:grid-cols-2 gap-6 text-sm">
+    <div class="space-y-3">
+      <p><span class="font-semibold">Files:</span> <code>models/*.py</code>, <code>core/database.py</code> (init_db DDL), <code>database/init/init-simple.sql</code>, <code>models/session.py</code></p>
+      <p><span class="font-semibold">Problem:</span> Schema is defined twice (SQLAlchemy models vs SQL bootstrap) with real drift — the SQL <code>users</code> table has <strong>no <code>role</code> column</strong> and lacks the workflow/llm tables; <code>_ensure_user_role_column</code> is a hand-rolled migration patching one symptom. The chat <code>Session</code> model is imported by <code>init_db</code> but consumed by nothing — dead schema. Document CRUD is a shallow module: query + commit + validate ×5 with the ownership filter copy-pasted.</p>
+      <p><span class="font-semibold">Solution:</span> Models (+ Alembic later) as the single source; delete the SQL bootstrap and the patch-up migration; delete the dead session model; fold document ownership into a repository default scope.</p>
+      <p><span class="font-semibold">Benefits:</span> Onboarding no longer requires reconciling two schemas; migration history becomes reviewable; document queries get one address.</p>
+      <p class="text-slate-500"><span class="font-semibold">Deletion test:</span> deleting SQL bootstrap + dead model <em>concentrates</em> schema truth — passes.</p>
+    </div>
+    <div class="space-y-2">
+      <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Before → After</p>
+      <div class="grid grid-cols-2 gap-2">
+        <div class="rounded-lg bg-rose-50 border border-rose-200 p-2">
+          <p class="text-[10px] font-bold text-rose-700 mb-1">BEFORE</p>
+          <pre class="mermaid text-xs">flowchart TB
+  M["models/*.py"] <-.drift.-> SQL["init-simple.sql<br/>users: no role column"]
+  P["_ensure_user_role_column<br/>(patch migration)"] -.-> SQL
+  S["models/session.py<br/>(dead)"] -.-> M
+  style SQL fill:#fee2e2,stroke:#dc2626
+  style S fill:#f1f5f9,stroke:#94a3b8,stroke-dasharray: 5 5</pre>
+        </div>
+        <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-2">
+          <p class="text-[10px] font-bold text-emerald-700 mb-1">AFTER</p>
+          <pre class="mermaid text-xs">flowchart TB
+  M["models/*.py<br/>single source"] --> DB[(PostgreSQL)]
+  MI["migrations<br/>(Alembic, later)"] --> DB
+  style M fill:#d1fae5,stroke:#059669</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ C6 ============ -->
+<section class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+  <div class="flex items-start justify-between gap-4 mb-4">
+    <h2 class="text-xl font-bold">C6 · One conftest to un-rot the test suite</h2>
+    <span class="chip px-3 py-1 rounded-full font-semibold bg-emerald-100 text-emerald-800 whitespace-nowrap">Strong</span>
+  </div>
+  <div class="grid md:grid-cols-2 gap-6 text-sm">
+    <div class="space-y-3">
+      <p><span class="font-semibold">Files:</span> <code>tests/*.py</code> — 5 copies of engine + <code>override_get_db</code> + fixtures; only 2 of 16 files are importable today</p>
+      <p><span class="font-semibold">Problem:</span> No shared bootstrap, so every file reinvents the seam — which is how two different JWT libraries (<code>jwt</code> vs <code>jose</code>) slipped in, and why 7 files still import the deleted legacy <code>gtplanner.agent.*</code>. The suite cannot act as a safety net.</p>
+      <p><span class="font-semibold">Solution:</span> <code>tests/conftest.py</code> providing the TestClient, SQLite DB, and <code>jose</code>-based auth headers; quarantine or delete the 7 legacy test files.</p>
+      <p><span class="font-semibold">Benefits:</span> This is the <em>leverage</em> point for every other candidate — each refactor step gets a cheap safety net. Cross-file pollution (singleton patching) disappears once C2 lands.</p>
+      <p class="text-slate-500"><span class="font-semibold">Deletion test:</span> deleting per-file boilerplate concentrates setup — passes.</p>
+    </div>
+    <div class="space-y-2">
+      <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Setup boilerplate per file → shared seam</p>
+      <div class="rounded-lg bg-rose-50 border border-rose-200 p-3">
+        <p class="text-[10px] font-bold text-rose-700 mb-2">BEFORE — every file its own bootstrap</p>
+        <div class="grid grid-cols-5 gap-1">
+          <div class="h-14 rounded bg-rose-300/70 flex items-center justify-center text-[9px] text-center text-white px-1">auth<br/>engine+fixtures</div>
+          <div class="h-14 rounded bg-rose-300/70 flex items-center justify-center text-[9px] text-center text-white px-1">authz<br/>engine+fixtures</div>
+          <div class="h-14 rounded bg-rose-300/70 flex items-center justify-center text-[9px] text-center text-white px-1">llm<br/>engine+fixtures</div>
+          <div class="h-14 rounded bg-rose-300/70 flex items-center justify-center text-[9px] text-center text-white px-1">workflow<br/>engine+fixtures</div>
+          <div class="h-14 rounded bg-rose-300/70 flex items-center justify-center text-[9px] text-center text-white px-1">documents<br/>engine+fixtures</div>
+        </div>
+        <p class="text-[10px] text-rose-700 mt-2">+ PyJWT vs jose split · + 7 files importing deleted legacy stack</p>
+      </div>
+      <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-3">
+        <p class="text-[10px] font-bold text-emerald-700 mb-2">AFTER — one conftest</p>
+        <div class="massbar h-8 rounded bg-emerald-400/80 flex items-center px-2 text-[10px] font-semibold text-white">conftest.py — client · sqlite db · jose auth headers</div>
+        <div class="grid grid-cols-5 gap-1 mt-1">
+          <div class="h-6 rounded bg-slate-200 flex items-center justify-center text-[9px]">auth</div>
+          <div class="h-6 rounded bg-slate-200 flex items-center justify-center text-[9px]">authz</div>
+          <div class="h-6 rounded bg-slate-200 flex items-center justify-center text-[9px]">llm</div>
+          <div class="h-6 rounded bg-slate-200 flex items-center justify-center text-[9px]">workflow</div>
+          <div class="h-6 rounded bg-slate-200 flex items-center justify-center text-[9px]">documents</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TOP RECOMMENDATION ============ -->
+<section class="bg-slate-900 text-slate-100 rounded-xl p-8">
+  <h2 class="text-2xl font-bold mb-3">🎯 Top recommendation</h2>
+  <p class="text-slate-300 text-sm leading-relaxed mb-4">
+    Start with <strong class="text-white">C1 (restore the route layer)</strong>, immediately followed by
+    <strong class="text-white">C6 (shared conftest)</strong>. Nothing else can even be <em>verified</em> until the app boots:
+    today the backend fails at import (<code>ModuleNotFoundError</code> on <code>.api</code>), 14 of 16 test files are unimportable,
+    and every fix attempt is a guess. C1 is reconstruction against a contract that already exists
+    (<code>web_simple/src/services/api.js</code> + test expectations), so it is low-risk and unblocks everything.
+    C6 turns the unlocked tests into the safety net for C2 → C3 → C5 → C4, in that order:
+    seams for wiring first, then one deep PRD generator (the product's core), then schema truth, then the god-module split.
+  </p>
+  <div class="flex flex-wrap gap-2 text-xs font-mono">
+    <span class="px-3 py-1.5 rounded bg-emerald-600">1 · C1 routes</span>
+    <span class="text-slate-500 self-center">→</span>
+    <span class="px-3 py-1.5 rounded bg-emerald-600">2 · C6 conftest</span>
+    <span class="text-slate-500 self-center">→</span>
+    <span class="px-3 py-1.5 rounded bg-slate-700">3 · C2 DI seam</span>
+    <span class="text-slate-500 self-center">→</span>
+    <span class="px-3 py-1.5 rounded bg-slate-700">4 · C3 PRDGenerator</span>
+    <span class="text-slate-500 self-center">→</span>
+    <span class="px-3 py-1.5 rounded bg-slate-700">5 · C5 schema truth</span>
+    <span class="text-slate-500 self-center">→</span>
+    <span class="px-3 py-1.5 rounded bg-slate-700">6 · C4 workflow split</span>
+  </div>
+</section>
+
+<!-- ============ NOTES ============ -->
+<footer class="text-xs text-slate-500 space-y-1 pb-8">
+  <p><strong>Vocabulary:</strong> module · interface · depth · seam · adapter · leverage · locality (from <code>/codebase-design</code>). Domain terms sourced from <code>docs/PRD.md</code>: PRD, generation workflow, clarifying questions, section drafts, finalize, LLM preset, active preset, personal override (BYO key), diagram.</p>
+  <p><strong>Gaps:</strong> No <code>GLOSSARY.md</code> and no <code>docs/adr/</code> exist — worth creating both during the grilling loop. Unverified by the explorer: contents of <code>database/migrations/</code>, purpose of root <code>package.json</code>, whether <code>pip install -e .</code> breaks on the missing <code>README.md</code> referenced by <code>pyproject.simple.toml</code>, and why the language server did not flag the missing <code>api</code> modules (suspected stale cache — <code>__pycache__</code> contents were not inspectable).</p>
+</footer>
+
+</main>
+</body>
+</html>

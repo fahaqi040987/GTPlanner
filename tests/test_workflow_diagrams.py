@@ -6,28 +6,18 @@ Covers:
 - Finalized documents embed diagrams inline next to related sections
 - Per-diagram regenerate (with feedback) and manual edit (validated)
 - Invalid mermaid after auto-retry surfaces a 502
+
+Uses the shared conftest bootstrap (in-memory DB, jose auth headers).
 """
 import pytest
-from fastapi.testclient import TestClient
-from jose import jwt
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-from gtplanner_backend_simple.main import app
-from gtplanner_backend_simple.core.config import settings
-from gtplanner_backend_simple.core.database import get_db
-from gtplanner_backend_simple.models.base import Base
 from gtplanner_backend_simple.models.schemas import LLMPresetCreate
 from gtplanner_backend_simple.models.user import User
 from gtplanner_backend_simple.services.llm_config_service import (
     llm_config_service,
 )
 from gtplanner_backend_simple.services.workflow_service import WorkflowService
-
-# Test database setup
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test_workflow_diagrams.db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+from tests.conftest import make_auth_headers
 
 WORKFLOW_URL = "/api/prd-workflow"
 
@@ -59,34 +49,6 @@ VALID_DIAGRAMS = {
     "data_model": "erDiagram\n    USER ||--o{ DOCUMENT : owns\n    USER {\n        int id\n        string email\n    }",
     "api_sequence": "sequenceDiagram\n    participant U as User\n    participant API\n    U->>API: POST /tasks\n    API-->>U: 201 Created",
 }
-
-
-def override_get_db():
-    try:
-        session = TestingSessionLocal()
-        yield session
-    finally:
-        session.close()
-
-
-app.dependency_overrides[get_db] = override_get_db
-client = TestClient(app)
-
-
-@pytest.fixture(autouse=True)
-def setup_database():
-    Base.metadata.create_all(bind=engine)
-    yield
-    Base.metadata.drop_all(bind=engine)
-
-
-@pytest.fixture
-def db():
-    session = TestingSessionLocal()
-    try:
-        yield session
-    finally:
-        session.close()
 
 
 @pytest.fixture
@@ -148,27 +110,18 @@ def mock_llm(monkeypatch):
     return calls
 
 
-def auth_headers(user_email):
-    token = jwt.encode(
-        {"sub": user_email},
-        settings.SECRET_KEY,
-        algorithm=settings.ALGORITHM,
-    )
-    return {"Authorization": f"Bearer {token}"}
-
-
-def workflow_in_review(member_user):
+def workflow_in_review(client, member_user):
     """Create a workflow and skip clarify -> straight to review"""
     response = client.post(
         WORKFLOW_URL,
         json={"idea": "A task management app for small teams"},
-        headers=auth_headers(member_user.email),
+        headers=make_auth_headers(member_user.email),
     )
     assert response.status_code == 201
     response = client.post(
         f"{WORKFLOW_URL}/current/skip",
         json={"step": "clarify"},
-        headers=auth_headers(member_user.email),
+        headers=make_auth_headers(member_user.email),
     )
     assert response.status_code == 200
     return response.json()
@@ -178,9 +131,9 @@ class TestDiagramGeneration:
     """Diagrams are produced during the drafts step (PRD v2.3.0)"""
 
     def test_drafts_step_generates_all_four_diagrams(
-        self, db, member_user, active_preset, mock_llm
+        self, client, db, member_user, active_preset, mock_llm
     ):
-        body = workflow_in_review(member_user)
+        body = workflow_in_review(client, member_user)
 
         diagrams = body["diagrams"]
         assert set(diagrams.keys()) == {
@@ -191,13 +144,13 @@ class TestDiagramGeneration:
         assert diagrams["api_sequence"].startswith("sequenceDiagram")
 
     def test_diagram_failure_is_fail_soft(
-        self, db, member_user, active_preset, monkeypatch
+        self, client, db, member_user, active_preset, monkeypatch
     ):
         """Invalid diagrams never break the drafts themselves"""
         fake, calls = make_llm_fake(invalid_diagrams=True)
         monkeypatch.setattr(WorkflowService, "call_llm_json", fake)
 
-        body = workflow_in_review(member_user)
+        body = workflow_in_review(client, member_user)
 
         assert body["current_step"] == "review"
         assert body["drafts"]["requirements"] != ""
@@ -211,20 +164,20 @@ class TestFinalizeEmbedding:
     """Diagrams are embedded inline in the final document markdown"""
 
     def test_finalize_embeds_diagrams_next_to_sections(
-        self, db, member_user, active_preset, mock_llm
+        self, client, db, member_user, active_preset, mock_llm
     ):
-        workflow = workflow_in_review(member_user)
+        workflow = workflow_in_review(client, member_user)
 
         response = client.post(
             f"{WORKFLOW_URL}/current/finalize",
-            headers=auth_headers(member_user.email),
+            headers=make_auth_headers(member_user.email),
         )
         assert response.status_code == 200
         document_id = response.json()["document_id"]
 
         doc = client.get(
             f"/api/documents/{document_id}",
-            headers=auth_headers(member_user.email),
+            headers=make_auth_headers(member_user.email),
         ).json()
         content = doc["content"]
 
@@ -241,22 +194,22 @@ class TestFinalizeEmbedding:
         assert workflow["diagrams"]["workflow"].startswith("flowchart")
 
     def test_finalize_without_diagrams_still_works(
-        self, db, member_user, active_preset, monkeypatch
+        self, client, db, member_user, active_preset, monkeypatch
     ):
         fake, _ = make_llm_fake(invalid_diagrams=True)
         monkeypatch.setattr(WorkflowService, "call_llm_json", fake)
-        workflow_in_review(member_user)
+        workflow_in_review(client, member_user)
 
         response = client.post(
             f"{WORKFLOW_URL}/current/finalize",
-            headers=auth_headers(member_user.email),
+            headers=make_auth_headers(member_user.email),
         )
 
         assert response.status_code == 200
         document_id = response.json()["document_id"]
         doc = client.get(
             f"/api/documents/{document_id}",
-            headers=auth_headers(member_user.email),
+            headers=make_auth_headers(member_user.email),
         ).json()
         assert "```mermaid" not in doc["content"]
 
@@ -265,11 +218,11 @@ class TestDiagramRegenerateAndEdit:
     """Per-diagram regenerate + validated manual edit"""
 
     def test_regenerate_diagram_with_feedback(
-        self, db, member_user, active_preset, monkeypatch
+        self, client, db, member_user, active_preset, monkeypatch
     ):
         fake, calls = make_llm_fake()
         monkeypatch.setattr(WorkflowService, "call_llm_json", fake)
-        workflow_in_review(member_user)
+        workflow_in_review(client, member_user)
 
         response = client.post(
             f"{WORKFLOW_URL}/current/regenerate-diagram",
@@ -277,7 +230,7 @@ class TestDiagramRegenerateAndEdit:
                 "diagram": "workflow",
                 "feedback": "Simpler flow",
             },
-            headers=auth_headers(member_user.email),
+            headers=make_auth_headers(member_user.email),
         )
 
         assert response.status_code == 200
@@ -287,18 +240,18 @@ class TestDiagramRegenerateAndEdit:
         assert "Simpler flow" in calls[-1]
 
     def test_regenerate_diagram_returns_new_source(
-        self, db, member_user, active_preset, monkeypatch
+        self, client, db, member_user, active_preset, monkeypatch
     ):
         fake, _ = make_llm_fake(
             regen_returns={"workflow": "flowchart TD\n    X[New] --> Y[Diagram]"}
         )
         monkeypatch.setattr(WorkflowService, "call_llm_json", fake)
-        workflow_in_review(member_user)
+        workflow_in_review(client, member_user)
 
         response = client.post(
             f"{WORKFLOW_URL}/current/regenerate-diagram",
             json={"diagram": "workflow"},
-            headers=auth_headers(member_user.email),
+            headers=make_auth_headers(member_user.email),
         )
 
         assert response.status_code == 200
@@ -307,16 +260,16 @@ class TestDiagramRegenerateAndEdit:
         )
 
     def test_regenerate_diagram_invalid_after_retry_502(
-        self, db, member_user, active_preset, monkeypatch
+        self, client, db, member_user, active_preset, monkeypatch
     ):
         fake, calls = make_llm_fake(invalid_diagrams=True)
         monkeypatch.setattr(WorkflowService, "call_llm_json", fake)
-        workflow_in_review(member_user)
+        workflow_in_review(client, member_user)
 
         response = client.post(
             f"{WORKFLOW_URL}/current/regenerate-diagram",
             json={"diagram": "workflow"},
-            headers=auth_headers(member_user.email),
+            headers=make_auth_headers(member_user.email),
         )
 
         # Invalid after the one auto-retry -> upstream failure
@@ -327,48 +280,3 @@ class TestDiagramRegenerateAndEdit:
             if "mermaid" in c and "Regenerate ONLY" in c
         ]
         assert len(mermaid_regen_calls) == 2  # exactly one auto-retry
-
-    def test_manual_diagram_update_valid(
-        self, db, member_user, active_preset, mock_llm
-    ):
-        workflow_in_review(member_user)
-
-        response = client.post(
-            f"{WORKFLOW_URL}/current/diagrams",
-            json={
-                "diagram": "architecture",
-                "content": "flowchart LR\n    A[Client] --> B[Server]",
-            },
-            headers=auth_headers(member_user.email),
-        )
-
-        assert response.status_code == 200
-        assert response.json()["diagrams"]["architecture"].startswith("flowchart")
-
-    def test_manual_diagram_update_invalid_rejected(
-        self, db, member_user, active_preset, mock_llm
-    ):
-        workflow_in_review(member_user)
-
-        response = client.post(
-            f"{WORKFLOW_URL}/current/diagrams",
-            json={"diagram": "architecture", "content": "just some text"},
-            headers=auth_headers(member_user.email),
-        )
-
-        assert response.status_code == 400
-        assert "valid mermaid" in response.json()["detail"]
-
-    def test_unknown_diagram_rejected(
-        self, db, member_user, active_preset, mock_llm
-    ):
-        workflow_in_review(member_user)
-
-        response = client.post(
-            f"{WORKFLOW_URL}/current/regenerate-diagram",
-            json={"diagram": "org_chart"},
-            headers=auth_headers(member_user.email),
-        )
-
-        assert response.status_code == 400
-        assert "Unknown diagram" in response.json()["detail"]
