@@ -34,11 +34,15 @@ def init_db() -> None:
     """
     Initialize database tables
     """
-    from ..models import user, document, llm_config, workflow  # noqa: F401
+    from ..models import (  # noqa: F401
+        user, document, llm_config, workflow,
+        workspace, prd_project, prd_section, vector_embedding
+    )
     from ..models.base import Base
 
     Base.metadata.create_all(bind=engine)
     _ensure_user_role_column()
+    _ensure_workspace_columns()
 
 
 # Sole remaining hand-rolled migration — replace with Alembic when
@@ -67,4 +71,35 @@ def _ensure_user_role_column() -> None:
             connection.execute(text(
                 "UPDATE users SET role = 'admin' "
                 "WHERE id = (SELECT MIN(id) FROM users)"
+            ))
+
+
+def _ensure_workspace_columns() -> None:
+    """
+    Bootstrap migration adding multi-workspace columns (PRD v1.0.0 vibe-code spec).
+
+    - users.workspace_id / users.full_name: optional membership in team workspaces.
+    - Default workspace: every existing project-less user gets one on first use.
+
+    Idempotent: safe to run on every startup.
+    """
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    columns = [column["name"] for column in inspector.get_columns("users")]
+
+    if "workspace_id" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text(
+                "ALTER TABLE users ADD COLUMN workspace_id VARCHAR(36) NULL"
+            ))
+            connection.execute(text(
+                "CREATE INDEX idx_users_workspace_id ON users (workspace_id)"
+            ))
+
+    if "full_name" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text(
+                "ALTER TABLE users ADD COLUMN full_name VARCHAR(255) "
+                "NOT NULL DEFAULT ''"
             ))

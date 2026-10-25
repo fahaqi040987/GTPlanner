@@ -1,45 +1,11 @@
 /**
- * New PRD page — guided generation workflow (PRD v2.1.0)
- *
- * Step 1  Intake   — idea, tech preferences, LLM choice (admin preset or
- *                    personal override)
- * Step 2  Clarify  — LLM-generated questions; answer, skip, or regenerate
- * Step 3  Review   — per-section drafts (view/edit/regenerate) plus the four
- *                    mermaid diagrams (PRD v2.3.0)
- * Step 4  Finalize — assembles the document and navigates to it
- *
- * The workflow lives on the server, so leaving and coming back resumes
- * exactly where the user stopped (GET /current on mount).
+ * New PRD page — guided generation workflow (PRD v1.0.0 vibe-code spec)
+ * 
+ * Implements DesignStitch "Prompt Hub AI PRD Generator" (Step 1)
  */
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import ReactMarkdown from 'react-markdown';
 import { workflowAPI, llmConfigAPI } from '../services/api';
-import Button from '../components/design-system/Button';
-import Card from '../components/design-system/Card';
-import InputField from '../components/design-system/InputField';
-import MermaidDiagram from '../components/MermaidDiagram';
-
-const SECTIONS = [
-  { key: 'requirements', label: 'Requirements' },
-  { key: 'tech_stack', label: 'Tech Stack' },
-  { key: 'infrastructure', label: 'Infrastructure' },
-  { key: 'implementation_plan', label: 'Implementation Plan' },
-  { key: 'success_metrics', label: 'Success Metrics' },
-];
-
-const DIAGRAMS = [
-  { key: 'workflow', label: 'Workflow' },
-  { key: 'architecture', label: 'Architecture' },
-  { key: 'data_model', label: 'Data Model' },
-  { key: 'api_sequence', label: 'API Sequence' },
-];
-
-const SECTION_LABELS = Object.fromEntries(
-  [...SECTIONS.map((s) => [s.key, s.label]), ...DIAGRAMS.map((d) => [d.key, d.label])]
-);
-
-const STEP_INDICATORS = ['Intake', 'Questions', 'Review'];
 
 function NewPRDPage() {
   const navigate = useNavigate();
@@ -49,7 +15,7 @@ function NewPRDPage() {
   const [busyLabel, setBusyLabel] = useState('');
   const [error, setError] = useState('');
 
-  // Workflow state (server-persisted)
+  // Workflow state
   const [workflow, setWorkflow] = useState(null);
 
   // Step 1 — intake form
@@ -57,20 +23,7 @@ function NewPRDPage() {
   const [techPrefs, setTechPrefs] = useState({ frontend: '', backend: '', database: '' });
   const [llmChoice, setLlmChoice] = useState('default');
   const [presets, setPresets] = useState([]);
-
-  // Step 2 — clarify
-  const [answers, setAnswers] = useState([]);
-  const [questionFeedback, setQuestionFeedback] = useState('');
-
-  // Step 3 — review
-  const [activeTab, setActiveTab] = useState('requirements');
-  const [editing, setEditing] = useState(false);
-  const [editContent, setEditContent] = useState('');
-  const [sectionFeedback, setSectionFeedback] = useState('');
-  const [activeDiagram, setActiveDiagram] = useState('workflow');
-  const [editingDiagram, setEditingDiagram] = useState(false);
-  const [diagramContent, setDiagramContent] = useState('');
-  const [diagramFeedback, setDiagramFeedback] = useState('');
+  const [complexity, setComplexity] = useState('comprehensive');
 
   const stepIndex = workflow
     ? { clarify: 1, review: 2 }[workflow.current_step] ?? 0
@@ -98,583 +51,297 @@ function NewPRDPage() {
   const loadPresets = async () => {
     try {
       const response = await llmConfigAPI.getPublicPresets();
-      setPresets(response.data);
-    } catch {
-      // Non-critical: picker falls back to "default (active preset)"
-    }
-  };
-
-  const adoptWorkflow = (data) => {
-    setWorkflow(data);
-    setAnswers((data.clarifying_questions || []).map(
-      (q, i) => data.clarifying_answers?.[i] || ''
-    ));
-    setActiveTab(SECTIONS[0].key);
-    setActiveDiagram(DIAGRAMS[0].key);
-    resetEditors();
-  };
-
-  const resetEditors = () => {
-    setEditing(false);
-    setEditingDiagram(false);
-    setSectionFeedback('');
-    setDiagramFeedback('');
-    setEditContent('');
-    setDiagramContent('');
-  };
-
-  const run = async (label, fn) => {
-    setBusy(true);
-    setBusyLabel(label);
-    setError('');
-    try {
-      const response = await fn();
-      if (response?.data) adoptWorkflow(response.data);
-      return response?.data;
+      if (Array.isArray(response.data)) {
+        setPresets(response.data);
+      }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Something went wrong — please retry');
-      return null;
-    } finally {
-      setBusy(false);
-      setBusyLabel('');
+      console.error('Failed to load presets', err);
     }
   };
 
-  // --- Step 1: intake ---
+  const adoptWorkflow = (wfData) => {
+    setWorkflow(wfData);
+    setIdea(wfData.prompt || '');
+    setTechPrefs(wfData.tech_preferences || { frontend: '', backend: '', database: '' });
+    setError('');
+  };
 
   const handleStart = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!idea.trim()) {
-      setError('Please describe what you want to build');
+      setError('Please provide a project idea');
       return;
     }
-    const tech_preferences = Object.fromEntries(
-      Object.entries(techPrefs).filter(([, v]) => v.trim())
-    );
-    const llm_choice =
-      llmChoice === 'default' ? null
-        : llmChoice === 'personal' ? { use_personal: true }
-          : { preset_id: Number(llmChoice) };
-
-    const data = await run(
-      'Starting workflow — generating clarifying questions…',
-      () => workflowAPI.create({ idea, tech_preferences, llm_choice })
-    );
-    if (data) setIdea(data.idea);
-  };
-
-  // --- Step 2: clarify ---
-
-  const handleSubmitAnswers = async () => {
-    const filled = answers.filter((a) => a.trim());
-    await run(
-      'Generating section drafts — this can take a minute…',
-      () => workflowAPI.submitAnswers(filled.length ? filled : ['(no answers)'])
-    );
-  };
-
-  const handleSkipQuestions = async () => {
-    await run('Generating section drafts…', () => workflowAPI.skipStep('clarify'));
-  };
-
-  const handleRegenerateQuestions = async () => {
-    await run(
-      'Regenerating questions…',
-      () => workflowAPI.regenerateQuestions(questionFeedback.trim() || null)
-    );
-    setQuestionFeedback('');
-  };
-
-  // --- Step 3: review ---
-
-  const handleSaveDraft = async () => {
-    const data = await run('Saving…', () =>
-      workflowAPI.updateDraft(activeTab, editContent)
-    );
-    if (data) setEditing(false);
-  };
-
-  const handleRegenerateSection = async () => {
-    await run('Regenerating section…', () =>
-      workflowAPI.regenerateSection(activeTab, sectionFeedback.trim() || null)
-    );
-    setSectionFeedback('');
-    setEditing(false);
-  };
-
-  const handleSaveDiagram = async () => {
-    const data = await run('Saving…', () =>
-      workflowAPI.updateDiagram(activeDiagram, diagramContent)
-    );
-    if (data) setEditingDiagram(false);
-  };
-
-  const handleRegenerateDiagram = async () => {
-    await run('Regenerating diagram…', () =>
-      workflowAPI.regenerateDiagram(activeDiagram, diagramFeedback.trim() || null)
-    );
-    setDiagramFeedback('');
-    setEditingDiagram(false);
-  };
-
-  // --- Step 4: finalize ---
-
-  const handleFinalize = async () => {
-    const data = await run('Saving your PRD…', () => workflowAPI.finalize());
-    if (data?.document_id) {
-      navigate(`/prd/${data.document_id}`);
+    setBusy(true);
+    setBusyLabel('Synthesizing architecture...');
+    setError('');
+    try {
+      const payload = {
+        prompt: idea,
+        tech_preferences: techPrefs,
+      };
+      if (llmChoice !== 'default' && llmChoice !== 'personal') {
+        payload.preset_id = parseInt(llmChoice, 10);
+      } else if (llmChoice === 'personal') {
+        payload.llm_choice = { use_personal: true };
+      }
+      
+      const response = await workflowAPI.create(payload);
+      adoptWorkflow(response.data);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to start generation workflow');
+    } finally {
+      setBusy(false);
     }
   };
 
-  const handleStartOver = async () => {
-    if (!window.confirm('Abandon this workflow and start over?')) return;
-    await run('Discarding…', () => workflowAPI.deleteCurrent());
-    setWorkflow(null);
-    setIdea('');
+  const handleApplyPreset = (presetText) => {
+    setIdea(presetText);
   };
-
-  // --- Render helpers ---
-
-  const busyOverlay = busy && (
-    <div className="flex items-center justify-center gap-sm p-lg mb-lg
-                    bg-surface-container-low rounded-lg border border-outline-variant">
-      <span className="inline-block w-5 h-5 border-2 border-secondary
-                       border-t-transparent rounded-full animate-spin" />
-      <span className="text-body-sm font-body-sm text-on-surface-variant">
-        {busyLabel}
-      </span>
-    </div>
-  );
-
-  const errorBanner = error && (
-    <div className="flex items-start gap-sm p-md mb-lg rounded-lg border
-                    border-error-container/40 bg-error-container/20
-                    text-on-error-container text-body-sm">
-      <span className="material-symbols-outlined text-base">error</span>
-      <span>{error}</span>
-    </div>
-  );
-
-  const stepIndicator = (
-    <div className="flex items-center gap-md mb-lg">
-      {STEP_INDICATORS.map((label, i) => (
-        <React.Fragment key={label}>
-          {i > 0 && <span className="text-outline">→</span>}
-          <span className={`text-label-caps font-label-caps px-sm py-xs rounded-full ${
-            i === stepIndex
-              ? 'bg-secondary-container/30 text-on-secondary-container'
-              : i < stepIndex
-                ? 'text-secondary'
-                : 'text-outline'
-          }`}>
-            {i + 1}. {label}
-          </span>
-        </React.Fragment>
-      ))}
-    </div>
-  );
-
-  // --- Step views ---
-
-  const renderIntake = () => (
-    <Card elevation="medium" padding="xl">
-      <form onSubmit={handleStart} className="space-y-lg">
-        <div>
-          <label className="block text-label-caps font-label-caps
-                            text-on-surface-variant uppercase tracking-widest mb-xs">
-            Project Description <span className="text-error">*</span>
-          </label>
-          <textarea
-            value={idea}
-            onChange={(e) => setIdea(e.target.value)}
-            className="w-full min-h-[160px] p-md bg-surface border border-outline-variant
-                       rounded-lg text-body-md text-on-surface placeholder:text-outline
-                       focus:outline-none focus:border-secondary focus:ring-1
-                       focus:ring-secondary resize-y"
-            placeholder="Describe what you want to build. Include the main features, target users, and any specific requirements…"
-            required
-          />
-          <p className="text-body-sm text-on-surface-variant mt-xs">
-            The AI will ask a few clarifying questions before drafting your PRD.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
-          <InputField
-            label="Frontend" name="frontend" value={techPrefs.frontend}
-            placeholder="e.g., React" onChange={(e) =>
-              setTechPrefs({ ...techPrefs, frontend: e.target.value })}
-          />
-          <InputField
-            label="Backend" name="backend" value={techPrefs.backend}
-            placeholder="e.g., FastAPI" onChange={(e) =>
-              setTechPrefs({ ...techPrefs, backend: e.target.value })}
-          />
-          <InputField
-            label="Database" name="database" value={techPrefs.database}
-            placeholder="e.g., PostgreSQL" onChange={(e) =>
-              setTechPrefs({ ...techPrefs, database: e.target.value })}
-          />
-        </div>
-
-        <div>
-          <label className="block text-label-caps font-label-caps
-                            text-on-surface-variant uppercase tracking-widest mb-xs">
-            LLM to use
-          </label>
-          <select
-            value={llmChoice}
-            onChange={(e) => setLlmChoice(e.target.value)}
-            className="w-full px-md py-3 bg-surface border border-outline-variant
-                       rounded-lg text-body-md text-on-surface focus:outline-none
-                       focus:border-secondary"
-          >
-            <option value="default">Default (active platform preset)</option>
-            {presets.map((p) => (
-              <option key={p.id} value={String(p.id)}>
-                Preset: {p.name} ({p.model})
-              </option>
-            ))}
-            <option value="personal">My personal LLM</option>
-          </select>
-          <p className="text-body-sm text-on-surface-variant mt-xs">
-            Configure presets in Settings, or add a personal LLM there too.
-          </p>
-        </div>
-
-        <Button
-          type="submit"
-          variant="primary"
-          size="lg"
-          disabled={busy}
-          className="w-full"
-        >
-          <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
-          Start workflow
-        </Button>
-      </form>
-    </Card>
-  );
-
-  const renderClarify = () => {
-    const questions = workflow.clarifying_questions || [];
-    return (
-      <div className="space-y-lg">
-        <Card elevation="medium" padding="xl">
-          <h2 className="text-headline-md font-headline-md text-primary mb-md">
-            A few questions before drafting
-          </h2>
-          {questions.length === 0 ? (
-            <p className="text-body-md text-on-surface-variant">
-              No clarifying questions — continue to generate your drafts.
-            </p>
-          ) : (
-            <div className="space-y-md">
-              {questions.map((q, i) => (
-                <div key={i}>
-                  <label className="block text-body-md text-on-surface mb-xs">
-                    {i + 1}. {q}
-                  </label>
-                  <textarea
-                    value={answers[i] || ''}
-                    onChange={(e) => {
-                      const next = [...answers];
-                      next[i] = e.target.value;
-                      setAnswers(next);
-                    }}
-                    className="w-full min-h-[64px] p-sm bg-surface border
-                               border-outline-variant rounded-lg text-body-sm
-                               text-on-surface focus:outline-none
-                               focus:border-secondary focus:ring-1
-                               focus:ring-secondary resize-y"
-                    placeholder="Your answer (optional)"
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        <Card elevation="small" padding="md">
-          <div className="flex flex-col md:flex-row md:items-center gap-sm">
-            <input
-              value={questionFeedback}
-              onChange={(e) => setQuestionFeedback(e.target.value)}
-              className="flex-1 px-md py-sm bg-surface border border-outline-variant
-                         rounded-lg text-body-sm text-on-surface placeholder:text-outline
-                         focus:outline-none focus:border-secondary"
-              placeholder="Want different questions? e.g. 'Focus on mobile'"
-            />
-            <Button variant="outline" size="sm" onClick={handleRegenerateQuestions}
-                    disabled={busy}>
-              <span className="material-symbols-outlined text-[16px]">refresh</span>
-              Regenerate questions
-            </Button>
-          </div>
-        </Card>
-
-        <div className="flex flex-col md:flex-row gap-sm">
-          <Button variant="primary" size="lg" onClick={handleSubmitAnswers}
-                  disabled={busy} className="flex-1">
-            Generate section drafts
-          </Button>
-          <Button variant="outline" size="lg" onClick={handleSkipQuestions}
-                  disabled={busy}>
-            Skip questions
-          </Button>
-        </div>
-      </div>
-    );
-  };
-
-  const renderSectionPane = () => {
-    const content = workflow.drafts?.[activeTab] || '';
-    return (
-      <Card elevation="medium" padding="xl">
-        <div className="flex items-center justify-between mb-md">
-          <h2 className="text-headline-md font-headline-md text-primary">
-            {SECTION_LABELS[activeTab]}
-          </h2>
-          <div className="flex gap-xs">
-            <Button
-              variant="outline" size="sm"
-              onClick={() => {
-                setEditing(!editing);
-                setEditContent(content);
-              }}
-            >
-              <span className="material-symbols-outlined text-[16px]">
-                {editing ? 'close' : 'edit'}
-              </span>
-              {editing ? 'Cancel' : 'Edit'}
-            </Button>
-          </div>
-        </div>
-
-        {editing ? (
-          <div className="space-y-md">
-            <textarea
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              className="w-full min-h-[280px] p-md bg-surface border border-outline-variant
-                         rounded-lg text-body-sm text-on-surface font-code-md
-                         focus:outline-none focus:border-secondary focus:ring-1
-                         focus:ring-secondary resize-y"
-            />
-            <Button variant="primary" size="sm" onClick={handleSaveDraft} disabled={busy}>
-              <span className="material-symbols-outlined text-[16px]">save</span>
-              Save section
-            </Button>
-          </div>
-        ) : (
-          <div className="prose prose-sm max-w-none">
-            <ReactMarkdown>{content || '_No content yet_'}</ReactMarkdown>
-          </div>
-        )}
-
-        <div className="mt-lg pt-md border-t border-outline-variant">
-          <label className="block text-label-caps font-label-caps
-                            text-on-surface-variant uppercase tracking-widest mb-xs">
-            Regenerate with feedback (optional)
-          </label>
-          <div className="flex flex-col md:flex-row gap-sm">
-            <input
-              value={sectionFeedback}
-              onChange={(e) => setSectionFeedback(e.target.value)}
-              className="flex-1 px-md py-sm bg-surface border border-outline-variant
-                         rounded-lg text-body-sm text-on-surface placeholder:text-outline
-                         focus:outline-none focus:border-secondary"
-              placeholder="e.g. 'Add offline support requirements'"
-            />
-            <Button variant="secondary" size="sm" onClick={handleRegenerateSection}
-                    disabled={busy}>
-              <span className="material-symbols-outlined text-[16px]">refresh</span>
-              Regenerate
-            </Button>
-          </div>
-        </div>
-      </Card>
-    );
-  };
-
-  const renderDiagramPane = () => {
-    const source = workflow.diagrams?.[activeDiagram];
-    return (
-      <Card elevation="medium" padding="xl">
-        <div className="flex items-center justify-between mb-md">
-          <h2 className="text-headline-md font-headline-md text-primary">
-            {SECTION_LABELS[activeDiagram]} diagram
-          </h2>
-          <Button
-            variant="outline" size="sm"
-            onClick={() => {
-              setEditingDiagram(!editingDiagram);
-              setDiagramContent(source || '');
-            }}
-          >
-            <span className="material-symbols-outlined text-[16px]">
-              {editingDiagram ? 'close' : 'edit'}
-            </span>
-            {editingDiagram ? 'Cancel' : 'Edit source'}
-          </Button>
-        </div>
-
-        {!source ? (
-          <p className="text-body-md text-on-surface-variant mb-md">
-            No {SECTION_LABELS[activeDiagram].toLowerCase()} diagram yet — regenerate
-            it below or it may have failed validation.
-          </p>
-        ) : editingDiagram ? (
-          <div className="space-y-md">
-            <textarea
-              value={diagramContent}
-              onChange={(e) => setDiagramContent(e.target.value)}
-              className="w-full min-h-[220px] p-md bg-surface border border-outline-variant
-                         rounded-lg text-body-sm text-on-surface font-code-md
-                         focus:outline-none focus:border-secondary focus:ring-1
-                         focus:ring-secondary resize-y"
-            />
-            <Button variant="primary" size="sm" onClick={handleSaveDiagram} disabled={busy}>
-              <span className="material-symbols-outlined text-[16px]">save</span>
-              Save diagram
-            </Button>
-          </div>
-        ) : (
-          <MermaidDiagram code={source} />
-        )}
-
-        <div className="mt-lg pt-md border-t border-outline-variant">
-          <label className="block text-label-caps font-label-caps
-                            text-on-surface-variant uppercase tracking-widest mb-xs">
-            Regenerate with feedback (optional)
-          </label>
-          <div className="flex flex-col md:flex-row gap-sm">
-            <input
-              value={diagramFeedback}
-              onChange={(e) => setDiagramFeedback(e.target.value)}
-              className="flex-1 px-md py-sm bg-surface border border-outline-variant
-                         rounded-lg text-body-sm text-on-surface placeholder:text-outline
-                         focus:outline-none focus:border-secondary"
-              placeholder="e.g. 'Show the mobile client too'"
-            />
-            <Button variant="secondary" size="sm" onClick={handleRegenerateDiagram}
-                    disabled={busy}>
-              <span className="material-symbols-outlined text-[16px]">refresh</span>
-              Regenerate
-            </Button>
-          </div>
-        </div>
-      </Card>
-    );
-  };
-
-  const renderReview = () => {
-    const tabs = [...SECTIONS.map((s) => ({ ...s, kind: 'section' })),
-      { key: 'diagrams', label: 'Diagrams', kind: 'diagrams' }];
-    return (
-      <div className="space-y-lg">
-        <div className="flex flex-wrap gap-xs">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => {
-                setActiveTab(tab.key);
-                resetEditors();
-              }}
-              className={`px-md py-sm rounded-lg text-label-caps font-label-caps
-                          transition-colors ${
-                activeTab === tab.key
-                  ? 'bg-secondary text-on-secondary'
-                  : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {activeTab === 'diagrams' ? (
-          <>
-            <div className="flex flex-wrap gap-xs">
-              {DIAGRAMS.map((d) => (
-                <button
-                  key={d.key}
-                  onClick={() => {
-                    setActiveDiagram(d.key);
-                    resetEditors();
-                  }}
-                  className={`px-sm py-xs rounded-lg text-body-sm transition-colors ${
-                    activeDiagram === d.key
-                      ? 'bg-primary text-on-primary'
-                      : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container'
-                  }`}
-                >
-                  {d.label}
-                  {workflow.diagrams?.[d.key]
-                    ? ''
-                    : ' (missing)'}
-                </button>
-              ))}
-            </div>
-            {renderDiagramPane()}
-          </>
-        ) : (
-          renderSectionPane()
-        )}
-
-        <Card elevation="small" padding="md">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-md">
-            <div>
-              <h3 className="text-body-md text-on-surface">Happy with the result?</h3>
-              <p className="text-body-sm text-on-surface-variant">
-                Finalize to save this PRD to your documents.
-              </p>
-            </div>
-            <div className="flex gap-sm">
-              <Button variant="outline" size="sm" onClick={handleStartOver} disabled={busy}>
-                Start over
-              </Button>
-              <Button variant="primary" onClick={handleFinalize} disabled={busy}>
-                <span className="material-symbols-outlined text-[18px]">task_alt</span>
-                Finalize PRD
-              </Button>
-            </div>
-          </div>
-        </Card>
-      </div>
-    );
-  };
-
-  // --- Main render ---
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-4 border-secondary border-t-transparent
-                        rounded-full animate-spin" />
+      <div className="flex items-center justify-center min-h-[50vh] bg-canvas-base">
+        <div className="flex flex-col items-center gap-space-md">
+          <span className="material-symbols-outlined text-[32px] text-tertiary animate-spin">progress_activity</span>
+          <p className="font-label-md text-on-surface-variant">Loading workspace...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-lg">
-        <h1 className="text-headline-lg font-headline-lg text-primary">
-          {workflow ? 'Continue your PRD' : 'Create New PRD'}
+    <div className="relative min-h-screen bg-canvas-base text-on-surface pb-space-2xl overflow-x-hidden">
+      {/* Chromatic Ambient Glow Elements */}
+      <div className="pointer-events-none absolute -top-12 left-1/2 -translate-x-1/2 w-[720px] h-[340px] bg-primary/10 rounded-full blur-[120px] z-0"></div>
+      <div className="pointer-events-none absolute top-48 right-12 w-[380px] h-[300px] bg-tertiary/10 rounded-full blur-[100px] z-0"></div>
+      
+      {/* Header Block */}
+      <div className="relative z-10 flex flex-col items-center text-center max-w-4xl mx-auto pt-space-md pb-space-lg px-gutter">
+        <div className="inline-flex items-center gap-space-xs px-space-md py-space-xs rounded-full bg-surface-container-high text-tertiary mb-space-md shadow-sm border border-border-subtle">
+          <span className="material-symbols-outlined text-[16px] text-tertiary animate-pulse" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
+          <span className="font-label-sm text-label-sm tracking-wide uppercase">Multi-Agent Architectural Synthesis</span>
+          <span className="w-1 h-1 rounded-full bg-tertiary/60 mx-space-xs"></span>
+          <span className="font-label-sm text-label-sm text-on-surface-variant">v2.4 Core</span>
+        </div>
+        <h1 className="font-headline text-headline-xl text-on-surface tracking-tight max-w-3xl leading-[1.1]">
+          Transform Any Project Idea into a <span className="bg-gradient-to-r from-primary via-tertiary to-secondary bg-clip-text text-transparent">Production-Ready PRD</span> & Architecture
         </h1>
-        <p className="text-body-sm font-body-sm text-on-surface-variant mt-xs">
-          A guided workflow: describe your idea, answer a few questions, review
-          section drafts and diagrams, finalize.
+        <p className="font-body text-body-lg text-on-surface-variant mt-space-md max-w-2xl leading-relaxed">
+          Instant user stories, deterministic architecture diagrams, and tailored tech stack recommendations powered by coordinated LLMs.
         </p>
+
+        {/* Pipeline State Indicators */}
+        <div className="flex items-center justify-center gap-space-lg mt-space-lg text-on-surface-variant">
+          <div className="flex items-center gap-space-xs">
+            <span className="w-2 h-2 rounded-full bg-tertiary animate-ping"></span>
+            <span className="font-label-sm text-label-sm text-on-surface">Claude 3.5 Sonnet</span>
+            <span className="font-label-sm text-label-sm text-outline">System Topology</span>
+          </div>
+          <span className="text-outline">/</span>
+          <div className="flex items-center gap-space-xs">
+            <span className="w-2 h-2 rounded-full bg-primary"></span>
+            <span className="font-label-sm text-label-sm text-on-surface">GPT-4o</span>
+            <span className="font-label-sm text-label-sm text-outline">Spec & Data Model</span>
+          </div>
+          <span className="text-outline">/</span>
+          <div className="flex items-center gap-space-xs">
+            <span className="material-symbols-outlined text-[14px] text-tertiary">bolt</span>
+            <span className="font-label-sm text-label-sm text-on-surface">142ms Engine</span>
+          </div>
+        </div>
       </div>
 
-      {stepIndicator}
-      {busyOverlay}
-      {errorBanner}
+      {/* Main Workbench Area */}
+      <div className="relative z-10 w-full max-w-4xl mx-auto px-gutter mt-space-md">
+        {error && (
+          <div className="mb-space-md p-space-md bg-error-container/10 border border-error/30 rounded-xl flex items-start gap-space-sm text-error animate-in fade-in slide-in-from-top-4 duration-300">
+            <span className="material-symbols-outlined">error</span>
+            <p className="font-body text-body-sm pt-0.5">{error}</p>
+          </div>
+        )}
 
-      {!workflow && renderIntake()}
-      {workflow?.current_step === 'clarify' && renderClarify()}
-      {workflow?.current_step === 'review' && renderReview()}
+        {/* Hero Prompt Entry Panel */}
+        {stepIndex === 0 && (
+          <div className="relative group transition-all duration-500">
+            {/* Neon Aura Background */}
+            <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-primary via-tertiary to-secondary opacity-30 blur-lg transition duration-700 group-hover:opacity-50"></div>
+            
+            <div className="relative rounded-2xl bg-surface-glass/95 backdrop-blur-2xl p-space-lg shadow-2xl flex flex-col gap-space-md border border-white/5">
+              {/* Header Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-space-sm pb-space-sm border-b border-white/5">
+                <div className="flex items-center gap-space-xs">
+                  <span className="p-space-xs rounded-md bg-surface-container-highest text-tertiary">
+                    <span className="material-symbols-outlined text-[18px]">terminal</span>
+                  </span>
+                  <span className="font-label-md text-label-md text-on-surface font-semibold tracking-wide uppercase">Concept Prompt</span>
+                  <span className="font-mono text-[11px] text-outline ml-space-xs opacity-60">MARKDOWN SUPPORTED</span>
+                </div>
+                
+                {/* Provider Selector */}
+                <div className="flex items-center gap-space-xs bg-surface-container-lowest p-1 rounded-xl border border-white/5">
+                  <button 
+                    type="button" 
+                    className={`px-space-md py-1 rounded-lg font-label-sm text-label-sm transition-all duration-200 flex items-center gap-space-xs ${llmChoice === 'default' ? 'bg-surface-elevated text-on-surface shadow-sm border border-white/10' : 'text-on-surface-variant hover:text-on-surface'}`}
+                    onClick={() => setLlmChoice('default')}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                    Deep Reasoning
+                  </button>
+                  {presets.map(p => (
+                    <button 
+                      key={p.id}
+                      type="button" 
+                      className={`px-space-md py-1 rounded-lg font-label-sm text-label-sm transition-all duration-200 flex items-center gap-space-xs ${llmChoice === p.id.toString() ? 'bg-surface-elevated text-on-surface shadow-sm border border-white/10' : 'text-on-surface-variant hover:text-on-surface'}`}
+                      onClick={() => setLlmChoice(p.id.toString())}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Text Area */}
+              <div className="relative">
+                <textarea 
+                  id="prompt-input" 
+                  value={idea}
+                  onChange={(e) => setIdea(e.target.value)}
+                  placeholder="Describe your product concept, user personas, and target platforms... (e.g., An AI-driven fitness coaching SaaS with gamification and Stripe billing)" 
+                  rows="5"
+                  className="w-full bg-surface-container-lowest text-on-surface font-body text-body-md leading-relaxed rounded-xl p-space-md placeholder:text-outline/40 border border-white/5 focus:border-tertiary/50 focus:ring-1 focus:ring-tertiary/20 resize-none min-h-[160px] transition-all duration-300"
+                  disabled={busy}
+                ></textarea>
+                <div className="absolute bottom-3 right-3 flex items-center gap-space-xs text-outline/50 font-mono text-[11px] pointer-events-none">
+                  <span>{idea.length}</span> / 4000
+                </div>
+              </div>
+
+              {/* Quick Preset Tags */}
+              <div className="flex flex-col gap-space-sm">
+                <div className="flex flex-wrap items-center gap-space-xs">
+                  <span className="font-label-sm text-label-sm text-outline/70 mr-space-xs uppercase tracking-wider text-[11px]">Presets:</span>
+                  
+                  <button 
+                    type="button" 
+                    onClick={() => handleApplyPreset('B2B multi-tenant SaaS with hierarchical workspace permissions, audit log, telemetry, Stripe billing, and Supabase RLS.')}
+                    className="px-space-sm py-1 rounded-lg bg-surface-container text-on-surface-variant hover:bg-surface-elevated hover:text-on-surface text-[12px] font-label-sm transition-all flex items-center gap-1 border border-white/5"
+                  >
+                    <span className="material-symbols-outlined text-[14px] text-primary">cloud_done</span> SaaS Platform
+                  </button>
+                  
+                  <button 
+                    type="button" 
+                    onClick={() => handleApplyPreset('Native cross-platform mobile application (React Native / Expo) with offline SQLite caching and biometric auth.')}
+                    className="px-space-sm py-1 rounded-lg bg-surface-container text-on-surface-variant hover:bg-surface-elevated hover:text-on-surface text-[12px] font-label-sm transition-all flex items-center gap-1 border border-white/5"
+                  >
+                    <span className="material-symbols-outlined text-[14px] text-tertiary">devices</span> Mobile App
+                  </button>
+                  
+                  <button 
+                    type="button" 
+                    onClick={() => handleApplyPreset('Autonomous AI workflow agent operating asynchronously via LangGraph, utilizing tool calling and vector memory.')}
+                    className="px-space-sm py-1 rounded-lg bg-surface-container text-on-surface-variant hover:bg-surface-elevated hover:text-on-surface text-[12px] font-label-sm transition-all flex items-center gap-1 border border-white/5"
+                  >
+                    <span className="material-symbols-outlined text-[14px] text-secondary">smart_toy</span> AI Agent
+                  </button>
+                </div>
+
+                {/* Bottom Action Bar */}
+                <div className="flex flex-wrap items-center justify-between gap-space-md pt-space-sm mt-space-xs border-t border-white/5">
+                  <div className="flex flex-wrap items-center gap-space-xs">
+                    <span className="font-label-sm text-label-sm text-outline/70 mr-space-xs uppercase tracking-wider text-[11px]">Depth:</span>
+                    <button 
+                      type="button" 
+                      onClick={() => setComplexity('comprehensive')}
+                      className={`px-space-md py-1.5 rounded-lg font-label-sm text-label-sm flex items-center gap-1.5 transition-all border ${complexity === 'comprehensive' ? 'bg-surface-elevated text-tertiary border-tertiary/30' : 'bg-surface-container text-on-surface-variant hover:text-on-surface border-white/5'}`}
+                    >
+                      <span className="material-symbols-outlined text-[16px]">account_tree</span>
+                      Comprehensive
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => setComplexity('mvp')}
+                      className={`px-space-md py-1.5 rounded-lg font-label-sm text-label-sm flex items-center gap-1.5 transition-all border ${complexity === 'mvp' ? 'bg-surface-elevated text-tertiary border-tertiary/30' : 'bg-surface-container text-on-surface-variant hover:text-on-surface border-white/5'}`}
+                    >
+                      <span className="material-symbols-outlined text-[16px]">speed</span>
+                      Sprint MVP
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-space-sm ml-auto">
+                    <button 
+                      type="button" 
+                      onClick={handleStart}
+                      disabled={busy || !idea.trim()}
+                      className="group relative px-space-lg py-space-sm rounded-lg bg-gradient-to-r from-primary-container to-secondary-container hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none text-white font-headline text-headline-sm font-semibold shadow-lg shadow-primary/20 transition-all flex items-center gap-space-sm border border-white/10"
+                    >
+                      {busy ? (
+                        <>
+                          <span className="material-symbols-outlined text-[20px] animate-spin">progress_activity</span>
+                          <span>{busyLabel}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="material-symbols-outlined text-[20px] transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110">electric_bolt</span>
+                          <span>Generate PRD & Architecture</span>
+                          <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-black/40 text-tertiary text-label-sm font-medium border border-tertiary/20">
+                            <span>Step 2</span>
+                            <span className="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                          </span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Workflow Progression State */}
+        {stepIndex > 0 && (
+          <div className="p-space-xl bg-surface-glass border border-white/10 rounded-2xl shadow-xl backdrop-blur-xl animate-in fade-in zoom-in duration-500">
+            <div className="flex items-center gap-space-md mb-space-lg">
+              <div className="w-12 h-12 rounded-xl bg-tertiary/10 flex items-center justify-center border border-tertiary/20">
+                <span className="material-symbols-outlined text-tertiary text-[28px] animate-spin">progress_activity</span>
+              </div>
+              <div>
+                <h3 className="font-headline text-headline-md text-on-surface">Architectural Synthesis Active</h3>
+                <p className="font-body text-body-sm text-on-surface-variant">The AI is currently building your multi-pane PRD workbench.</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-space-md mb-space-lg">
+              <div className="p-space-md rounded-xl bg-surface-container-lowest border border-white/5">
+                <span className="font-mono text-[10px] text-outline uppercase">Module 1</span>
+                <p className="font-label-md text-on-surface mt-1">PRD Markdown</p>
+                <div className="mt-2 h-1 w-full bg-surface-container rounded-full overflow-hidden">
+                  <div className="h-full bg-primary animate-pulse w-3/4"></div>
+                </div>
+              </div>
+              <div className="p-space-md rounded-xl bg-surface-container-lowest border border-white/5">
+                <span className="font-mono text-[10px] text-outline uppercase">Module 2</span>
+                <p className="font-label-md text-on-surface mt-1">Diagram Topology</p>
+                <div className="mt-2 h-1 w-full bg-surface-container rounded-full overflow-hidden">
+                  <div className="h-full bg-tertiary animate-pulse w-1/2"></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between border-t border-white/5 pt-space-md">
+              <button 
+                onClick={() => navigate('/dashboard')}
+                className="px-space-md py-space-sm bg-surface-elevated text-on-surface rounded-lg hover:bg-surface-variant transition-colors border border-white/10 font-label-md text-label-md"
+              >
+                Go to Dashboard
+              </button>
+              <span className="font-mono text-[12px] text-tertiary">ESTIMATED COMPLETION: 45s</span>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

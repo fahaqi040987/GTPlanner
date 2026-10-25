@@ -100,7 +100,7 @@ gtplanner_web.db  # Web Interface SQLite database
 .eslintcache
 
 # Optional REPL history
-.node_repl_history 
+.node_repl_history
 
 
 input/*
@@ -128,3 +128,7 @@ history/*
 docs/*
 
 archive/*
+
+DesignStitch/*
+
+.agents/*

@@ -7,18 +7,21 @@ import { useAuthStore } from './state/authStore';
 
 // Pages
 import LoginPage from './pages/LoginPage';
+import AuthLoginPage from './pages/AuthLoginPage';
 import DashboardPage from './pages/DashboardPage';
 import NewPRDPage from './pages/NewPRDPage';
 import PRDDetailPage from './pages/PRDDetailPage';
 import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
+import AdminLLMPage from './pages/AdminLLMPage';
+import AdminDLQPage from './pages/AdminDLQPage';
+import AdminAnalyticsPage from './pages/AdminAnalyticsPage';
 
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
 import AppShell from './components/layout/AppShell';
 import NavigationBar from './components/NavigationBar';
-import AdminLLMPage from './pages/AdminLLMPage';
 
 function App() {
   const { isAuthenticated } = useAuthStore();
@@ -32,6 +35,10 @@ function App() {
         {/* Public routes */}
         <Route
           path="/login"
+          element={!isAuthenticated ? <AuthLoginPage /> : <Navigate to="/dashboard" />}
+        />
+        <Route
+          path="/login-classic"
           element={!isAuthenticated ? <LoginPage /> : <Navigate to="/dashboard" />}
         />
 
@@ -52,6 +59,8 @@ function App() {
           <Route path="settings" element={<SettingsPage />} />
           <Route element={<AdminRoute />}>
             <Route path="admin/llm" element={<AdminLLMPage />} />
+            <Route path="admin/dlq" element={<AdminDLQPage />} />
+            <Route path="admin/analytics" element={<AdminAnalyticsPage />} />
           </Route>
         </Route>
 

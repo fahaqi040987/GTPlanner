@@ -20,11 +20,12 @@ from ..core.config import settings
 from ..core.json_utils import LLMJSONParseError, parse_llm_json
 from ..models.schemas import PRDGeneration
 
+# Shared exception lives in a leaf module to break the import cycle:
+# prd_generator -> llm_orchestrator -> errors (leaf)
+from .errors import PRDGenerationError
+from .llm_orchestrator import llm_orchestrator
+
 _LLM_TIMEOUT_SECONDS = 120.0
-
-
-class PRDGenerationError(ValueError):
-    """PRD generation/refinement failure with a user-actionable message"""
 
 
 # --- Prompt templates (data, not methods) ---
@@ -134,7 +135,8 @@ class PRDGenerator:
         Args:
             prompt: User's project description
             tech_preferences: User's technology preferences
-            llm: (base_url, api_key, model) override; None uses settings
+            llm: (base_url, api_key, model) override; None uses the
+                multi-provider orchestrator with circuit-breaker fallback
 
         Returns:
             PRDGeneration: Structured PRD document
@@ -142,7 +144,6 @@ class PRDGenerator:
         Raises:
             PRDGenerationError: On API, parsing, or schema failures
         """
-        base_url, api_key, model = self._resolve_llm(llm)
         user_prompt = PRD_USER_PROMPT_TEMPLATE.format(
             prompt=prompt,
             tech_preferences_block=(
@@ -152,14 +153,7 @@ class PRDGenerator:
                 else ""
             ),
         )
-        prd_data = await asyncio.to_thread(
-            self._call_llm_json,
-            base_url,
-            api_key,
-            model,
-            PRD_SYSTEM_PROMPT,
-            user_prompt,
-        )
+        prd_data = await self._complete_json(user_prompt, PRD_SYSTEM_PROMPT, llm)
         return self._to_prd(prd_data)
 
     async def refine_prd(
@@ -176,7 +170,8 @@ class PRDGenerator:
             original_prd: Original generated PRD
             feedback: User's feedback and requirements
             tech_changes: User's suggested tech stack changes
-            llm: (base_url, api_key, model) override; None uses settings
+            llm: (base_url, api_key, model) override; None uses the
+                multi-provider orchestrator with circuit-breaker fallback
 
         Returns:
             PRDGeneration: Refined PRD document
@@ -184,20 +179,12 @@ class PRDGenerator:
         Raises:
             PRDGenerationError: On API, parsing, or schema failures
         """
-        base_url, api_key, model = self._resolve_llm(llm)
         user_prompt = REFINE_USER_PROMPT_TEMPLATE.format(
             original_prd_json=json.dumps(original_prd.model_dump(), indent=2),
             feedback=feedback,
             tech_changes_json=json.dumps(tech_changes, indent=2),
         )
-        prd_data = await asyncio.to_thread(
-            self._call_llm_json,
-            base_url,
-            api_key,
-            model,
-            REFINE_SYSTEM_PROMPT,
-            user_prompt,
-        )
+        prd_data = await self._complete_json(user_prompt, REFINE_SYSTEM_PROMPT, llm)
         return self._to_prd(prd_data)
 
     def _call_llm_json(
